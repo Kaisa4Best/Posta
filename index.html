@@ -520,6 +520,35 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   .lg-form, .drawer { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 </style>
+<style id="glass2">
+/* Daha şeffaf, iOS tarzı cam */
+:root { --glass-bg: rgba(255,255,255,.2); --glass-bg2: rgba(255,255,255,.05); --glass-brd: rgba(255,255,255,.5); --glass-hi: rgba(255,255,255,.85); --glass-lo: rgba(255,255,255,.14); --glass-sh: rgba(24,36,56,.18); --glass-field: rgba(255,255,255,.2); --glass-pill: rgba(255,255,255,.32); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --glass-bg: rgba(40,48,62,.26); --glass-bg2: rgba(40,48,62,.06); --glass-brd: rgba(255,255,255,.22); --glass-hi: rgba(255,255,255,.4); --glass-lo: rgba(255,255,255,.07); --glass-sh: rgba(0,0,0,.45); --glass-field: rgba(255,255,255,.08); --glass-pill: rgba(255,255,255,.12); } }
+:root[data-theme="dark"] { --glass-bg: rgba(40,48,62,.26); --glass-bg2: rgba(40,48,62,.06); --glass-brd: rgba(255,255,255,.22); --glass-hi: rgba(255,255,255,.4); --glass-lo: rgba(255,255,255,.07); --glass-sh: rgba(0,0,0,.45); --glass-field: rgba(255,255,255,.08); --glass-pill: rgba(255,255,255,.12); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lg-form {
+    -webkit-backdrop-filter: blur(16px) saturate(190%) brightness(1.08) contrast(1.02);
+    backdrop-filter: blur(16px) saturate(190%) brightness(1.08) contrast(1.02);
+    border-radius: 30px;
+    box-shadow: 0 22px 60px var(--glass-sh), inset 0 1.5px 1px var(--glass-hi), inset 0 -1.5px 1px var(--glass-lo), inset 1.5px 0 1px var(--glass-lo), inset -1.5px 0 1px var(--glass-lo), inset 0 0 24px rgba(255,255,255,.06);
+  }
+  .lg-form::before { opacity: .38; background: radial-gradient(130% 60% at 15% -5%, var(--glass-hi), transparent 60%), radial-gradient(80% 40% at 100% 100%, var(--glass-lo), transparent 70%); }
+  .drawer {
+    background: linear-gradient(145deg, var(--glass-bg), var(--glass-bg2));
+    -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.06);
+    backdrop-filter: blur(22px) saturate(190%) brightness(1.06);
+    border-radius: 0 28px 28px 0;
+  }
+  .lg-form input[type="email"], .lg-form input[type="password"], .lg-form input[type="text"] { box-shadow: inset 0 1px 0 var(--glass-lo), inset 0 0 0 1px rgba(255,255,255,.06); }
+  .scrim { background: rgba(10,14,20,.18); }
+}
+/* Fotoğraf varken kart koyu zeminin üstünde durur: yazılar açık renk */
+.lg-art.has-photo ~ .lg-form { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+.lg-art.has-photo ~ .lg-form label, .lg-art.has-photo ~ .lg-form .muted, .lg-art.has-photo ~ .lg-form .kicker, .lg-art.has-photo ~ .lg-form .link-btn, .lg-art.has-photo ~ .lg-form .check, .lg-art.has-photo ~ .lg-form h1 { color: #fff; }
+.lg-art.has-photo ~ .lg-form input { color: #fff; text-shadow: none; background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.4); }
+.lg-art.has-photo ~ .lg-form input::placeholder { color: rgba(255,255,255,.6); }
+.lg-art.has-photo ~ .lg-form .err { color: #ffb4a6; }
+</style>
 </head>
 <body>
 <div class="airmail" aria-hidden="true"><div class="hearts" id="hearts"></div></div>
