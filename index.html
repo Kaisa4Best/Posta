@@ -386,6 +386,14 @@ dialog { max-height: 90vh; overflow-y: auto; }
 .dist-big { font: 800 clamp(30px, 9vw, 44px)/1.1 var(--display); letter-spacing: -.01em; }
 .dist-tip { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font-weight: 700; box-shadow: none; }
 
+.pin-res { display: grid; gap: 6px; margin-top: 8px; }
+.pin-res .btn { text-align: left; font-weight: 500; white-space: normal; }
+.status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.status-chips .btn { padding: 8px 12px; font-size: 15px; }
+.status-chips .btn.on { background: var(--ink); color: var(--bg); }
+.wx { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.wx .panel .t { font: 800 28px/1.1 var(--display); }
+.pin-row { display: grid; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-block: 26px 14px; }
 .sec-head h2 { font-size: 26px; font-weight: 800; }
 
@@ -649,6 +657,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <button class="nav-item" type="button" data-tab="anilar">Anılar<span class="badge" id="memBadge" hidden></span></button>
         <button class="nav-item" type="button" data-tab="zaman">Zaman çizelgesi</button>
         <button class="nav-item" type="button" data-tab="albumler">Albümler</button>
+        <button class="nav-item" type="button" data-tab="harita">Harita</button>
         <button class="nav-item" type="button" data-tab="ozet">Yıllık özet</button>
       </div>
     </div>
@@ -702,6 +711,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     </div>
 
     <div class="panel otd" id="noteAlert" hidden></div>
+    <div class="panel" id="statusBox" style="margin-top:12px"></div>
 
     <div class="stats">
       <div class="panel"><p class="k">Sonraki yüzlük</p><p class="v" id="stHundred"></p><p class="sub" id="stHundredSub"></p></div>
@@ -728,6 +738,12 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <form class="panel form mem-form" id="memForm" hidden style="margin-top:0" autocomplete="off" novalidate>
       <div class="field"><label for="memTitle">Başlık</label><input type="text" id="memTitle" maxlength="80" required></div>
       <div class="row2"><div class="field"><label for="memDate">Ne zaman</label><input type="date" id="memDate" required></div><div class="field"><label for="memPlace">Nerede (isteğe bağlı)</label><input type="text" id="memPlace" maxlength="60"></div></div>
+      <div class="field" id="memPinField">
+        <label>Haritadaki yeri (isteğe bağlı)</label>
+        <div class="actions" style="margin-top:0"><button class="btn" type="button" id="memFind">Yazdığım yeri bul</button><button class="btn" type="button" id="memHere">Şu anki konumum</button></div>
+        <div class="pin-res" id="memPinRes"></div>
+        <p class="muted small" id="memPinSt"></p>
+      </div>
       <div class="field"><label for="memBody">Notun (isteğe bağlı)</label><textarea id="memBody" maxlength="1500"></textarea></div>
       <div class="field" id="memPhotoField"><label for="memPhoto" id="memPhotoLbl">Fotoğraf (isteğe bağlı)</label><input type="file" id="memPhoto" accept="image/jpeg,image/png,image/webp,image/gif"></div>
       <p class="err" id="memErr" role="alert"></p>
@@ -785,11 +801,21 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <div class="tracks" id="trackList"></div>
   </section>
 
+  <!-- Harita -->
+  <section id="p-harita" data-panel hidden>
+    <div class="sec-head"><h2>Gittiğimiz yerler</h2><span class="muted small" id="pinCount"></span></div>
+    <div class="dist-map" id="pinMap" role="img" aria-label="Anıların bulunduğu yerler"></div>
+    <p class="muted small" style="margin-top:10px">Pinler, konum eklediğin anılardan gelir. Pine dokununca anının adı ve tarihi görünür.</p>
+    <div class="actions" style="margin-top:10px"><button class="btn primary" type="button" id="pinAdd">Yeni anı ekle</button></div>
+    <div id="pinNoLoc" style="margin-top:16px"></div>
+  </section>
+
   <!-- Mesafe -->
   <section id="p-mesafe" data-panel hidden>
     <div class="sec-head"><h2>Aramızdaki mesafe</h2></div>
     <div class="dist-map" id="distMap" role="img" aria-label="İkinizin konumunu gösteren harita"></div>
     <div class="panel" id="distInfo" style="margin-top:12px"></div>
+    <div class="wx" id="distWx"></div>
     <div class="actions" id="distActions" style="margin-top:12px"></div>
     <p class="muted small" style="margin-top:10px">Konumlar yalnızca ikinize görünür. Konum, siteyi açık tuttuğun sürece güncellenir. İstediğin an paylaşımı durdurabilirsin.</p>
   </section>
@@ -950,6 +976,12 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <p class="muted small" id="welcomeStatus" role="status">Giriş ekranında sırayla gösterilir. En fazla 10 tane.</p>
       <div class="thumbs" id="welcomeList"></div>
     </div>
+    </div>
+    <div class="field">
+      <label>Yedek</label>
+      <p class="muted small">Anıları, listeleri, mesajları ve ayarları tek dosya olarak indirir. Fotoğraf ve müzik dosyaları sunucuda durur, yedekte bağlantıları bulunur.</p>
+      <div class="actions"><button class="btn" type="button" id="btnBackup">Yedeği indir</button></div>
+      <p class="muted small" id="backupSt" role="status"></p>
     </div>
     <div class="field"><label for="sePw">Yeni şifre (en az 6 karakter, değiştirmek istemezsen boş bırak)</label><input type="password" id="sePw" autocomplete="new-password"></div>
     <p class="err" id="seErr" role="alert"></p>
@@ -1383,7 +1415,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   /* ---------- Telefona bildirim (ntfy) ---------- */
-  function pushBase() { return (state.settings && /^[a-z0-9]{12,40}$/.test(state.settings.ntfyBase || '')) ? state.settings.ntfyBase : ''; }
+  function pushBase() { return /^[a-z0-9]{12,40}$/.test(LOC.ntfy || '') ? LOC.ntfy : ''; }
   function pushTopic(key) { var b = pushBase(); return b ? b + '-' + String(key).toLowerCase() : ''; }
   function pushTo(key, title, msg) {
     var t = pushTopic(key); if (!t) return;
@@ -1392,8 +1424,33 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         body: JSON.stringify({ topic: t, title: title, message: String(msg).slice(0, 240), click: location.href.split('#')[0].split('?')[0], tags: ['love_letter'] }) }).catch(function () {});
     } catch (e) {}
   }
+  /* ---------- Her sabah hava durumu bildirimi ---------- */
+  var HW = { res: [], msg: '' };
+  function hwConfig() {
+    var base = pushBase(), hm = LOC.home || {}, nm = names();
+    if (!base || !hm.A || !hm.B) return '';
+    function one(k) { var h = hm[k]; return { who: nm[k] || k, name: h.name, lat: +(+h.lat).toFixed(3), lng: +(+h.lng).toFixed(3) }; }
+    return JSON.stringify({ base: base, homes: { A: one('A'), B: one('B') } });
+  }
+  function hwHtml() {
+    var hm = LOC.home || {}, nm = names(), me = state.me, ot = other(), h = '';
+    h += '<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">';
+    h += '<p class="k">Her sabah hava durumu</p><p class="muted small">Her sabah 06:30’da ikinizin şehrinin hava durumu telefona bildirim olarak gelir.</p>';
+    h += '<div class="add-row" style="margin-top:8px"><input type="text" id="hwQ" maxlength="60" placeholder="Şehrin (ör. Ankara)" value="' + esc(hm[me] ? hm[me].name : '') + '"><button class="btn" type="button" data-push="hwfind">Bul</button></div>';
+    h += '<div class="pin-res">' + pinBtns(HW.res, 'data-hwpick') + '</div>';
+    if (HW.msg) h += '<p class="muted small">' + esc(HW.msg) + '</p>';
+    h += '<p class="muted small" style="margin-top:6px">' + esc(nm[me] || 'Senin') + ': ' + esc(hm[me] ? hm[me].name : 'seçilmedi') + ' · ' + esc(nm[ot] || 'Sevgilin') + ': ' + esc(hm[ot] ? hm[ot].name : 'seçilmedi') + '</p>';
+    var cfg = hwConfig();
+    if (cfg) {
+      h += '<p class="muted small" style="margin-top:10px">İkiniz de şehrinizi seçtiniz. Son adım: aşağıdaki metni kopyalayıp GitHub’da bir kez kaydedeceksin (Settings, Secrets and variables, Actions, New repository secret). Adı <b>GUNLUK_AYAR</b>.</p>';
+      h += '<div class="field"><textarea id="hwCfg" readonly rows="3" style="width:100%;font:12px ui-monospace,monospace">' + esc(cfg) + '</textarea></div><div class="actions"><button class="btn" type="button" data-push="hwcopy">Metni kopyala</button></div>';
+    }
+    return h;
+  }
+
   function renderPush() {
     var box = $('#pushBody'); if (!box) return;
+    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.id === 'hwQ') return;
     var base = pushBase(), perm = ('Notification' in window) ? Notification.permission : 'unsupported', h = '';
     if (!base) {
       h = '<p class="muted small" style="margin-top:10px">Site kapalıyken bile telefonuna bildirim düşmesi için ücretsiz “ntfy” uygulaması kullanılır.</p>';
@@ -1406,24 +1463,40 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         '<li>Uygulamayı aç, <b>+</b> düğmesine bas, aşağıdaki konu adını yapıştır ve <b>Subscribe</b> de. Sunucu kısmına dokunma, olduğu gibi kalsın.</li>' +
         '</ol><div class="field" style="margin-top:10px"><label for="pushTopic">Senin konu adın</label><input type="text" id="pushTopic" readonly value="' + esc(mine) + '"></div>' +
         '<div class="actions"><button class="btn" type="button" data-push="copy">Kopyala</button><button class="btn" type="button" data-push="test">Test bildirimi gönder</button></div>' +
-        '<p class="muted small" style="margin-top:10px">Mesaj metni bildirim için ntfy.sh servisinden geçer. Konu adını kimseyle paylaşma.</p>';
+        '<p class="muted small" style="margin-top:10px">Mesaj metni bildirim için ntfy.sh servisinden geçer. Konu adını kimseyle paylaşma.</p>' + hwHtml();
     }
     if (perm === 'default') h += '<div class="actions" style="margin-top:6px"><button class="link-btn" type="button" data-push="browser">Bu tarayıcıda da bildirim göster</button></div>';
     else if (perm === 'granted') h += '<p class="muted small" style="margin-top:6px">Tarayıcı bildirimi açık (site arka plandayken gösterilir).</p>';
     box.innerHTML = h;
   }
   $('#p-bildirim').addEventListener('click', function (e) {
+    var pk = e.target.closest('[data-hwpick]');
+    if (pk) {
+      var r = HW.res[+pk.dataset.hwpick]; if (!r) return;
+      var cur = Object.assign({}, LOC.home || {}); cur[state.me] = { name: r.name.split(',')[0].trim().slice(0, 40), lat: r.lat, lng: r.lng };
+      HW.res = []; HW.msg = '';
+      state.db.doc('seen/home').set(cur).then(function () { toast('Şehir kaydedildi.'); }).catch(fail);
+      return;
+    }
     var b = e.target.closest('[data-push]'); if (!b) return;
     var a = b.dataset.push;
     if (a === 'enable') {
       var arr = new Uint8Array(10); crypto.getRandomValues(arr);
       var base = 'pk' + Array.prototype.map.call(arr, function (x) { return x.toString(16).padStart(2, '0'); }).join('');
-      state.db.doc('app/settings').update({ ntfyBase: base }).then(function () { toast('Etkinleştirildi. Şimdi adımları uygula.'); }).catch(fail);
+      state.db.doc('seen/ntfy').set({ base: base }).then(function () { toast('Etkinleştirildi. Şimdi adımları uygula.'); }).catch(fail);
     } else if (a === 'copy') {
       var inp = $('#pushTopic'); inp.select();
       try { navigator.clipboard.writeText(inp.value).then(function () { toast('Kopyalandı.'); }, function () { document.execCommand('copy'); toast('Kopyalandı.'); }); } catch (x) { try { document.execCommand('copy'); toast('Kopyalandı.'); } catch (y) {} }
     } else if (a === 'test') {
       pushTo(state.me, 'Posta Kutumuz', 'Test bildirimi. Bunu görüyorsan her şey tamam ♥'); toast('Test gönderildi. Birkaç saniye içinde telefonda görünmeli.');
+    } else if (a === 'hwfind') {
+      var q = ($('#hwQ').value || '').trim(); if (!q) return;
+      HW.msg = 'Aranıyor…'; HW.res = []; renderPush();
+      geoSearch(q).then(function (list) { HW.res = list; HW.msg = list.length ? 'Doğru olana dokun.' : 'Bulunamadı. Daha açık yaz.'; })
+        .catch(function () { HW.msg = 'Arama şu an çalışmıyor.'; }).then(function () { document.activeElement.blur(); renderPush(); });
+    } else if (a === 'hwcopy') {
+      var ta = $('#hwCfg'); ta.select();
+      try { navigator.clipboard.writeText(ta.value).then(function () { toast('Kopyalandı.'); }, function () { document.execCommand('copy'); toast('Kopyalandı.'); }); } catch (x) { try { document.execCommand('copy'); toast('Kopyalandı.'); } catch (y) {} }
     } else if (a === 'browser') {
       try { Notification.requestPermission().then(renderPush); } catch (x) {}
     }
@@ -1470,10 +1543,11 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'takvim', 'mesafe', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
     if (window.paintNav) window.paintNav();
     if (tab === 'mesafe' && window.renderMesafe) setTimeout(window.renderMesafe, 0);
+    if (tab === 'harita' && window.renderHarita) setTimeout(window.renderHarita, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
       if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -1765,7 +1839,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       btn.disabled = false; btn.textContent = 'Kaydet'; return;
     }
     try {
-      await state.db.collection('memories').add({ title: title, date: date, body: body, place: place, photoId: photoId, pendingPhotoId: pendingId, by: state.me, createdAt: Date.now() });
+      await state.db.collection('memories').add(Object.assign({ title: title, date: date, body: body, place: place, photoId: photoId, pendingPhotoId: pendingId, by: state.me, createdAt: Date.now() }, PIN.sel ? { lat: PIN.sel.lat, lng: PIN.sel.lng } : {}));
       $('#memForm').reset(); $('#memForm').hidden = true;
       toast(pendingId ? 'Anı eklendi. Fotoğraf yönetici onayından sonra görünür.' : 'Anı eklendi.');
     } catch (ex) { fail(ex); }
@@ -1859,7 +1933,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe'], diger: ['muzik', 'uygulama'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe'], diger: ['muzik', 'uygulama'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -2243,6 +2317,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     else if (sharing) a += '<button class="btn" type="button" disabled>Konum alınıyor…</button> <button class="link-btn" type="button" data-loc="off">Vazgeç</button>';
     else a += '<button class="btn' + (hasMine && hasTheirs ? '' : ' primary') + '" type="button" data-loc="on">Konumumu paylaş</button>';
     info.innerHTML = h; act.innerHTML = a;
+    renderWx();
     drawMap();
   }
   function routeKeyOf(a, b) { return [a.lat, a.lng, b.lat, b.lng].map(function (x) { return x.toFixed(2); }).join(','); }
@@ -2300,6 +2375,181 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   $('#btnLogout').addEventListener('click', function () { stopWatch(false); });
   function resumeLoc() { if (LS.get(locLS()) === 'on' && LOC.watch == null) startWatch(false); }
 
+
+  /* ---------- Harita: anılara konum ---------- */
+  var PIN = { sel: null, res: [], map: null, layers: null, sig: '', edit: null };
+  function hasPin(m) { return m && typeof m.lat === 'number' && typeof m.lng === 'number' && isFinite(m.lat) && isFinite(m.lng); }
+  function geoSearch(q) {
+    return fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=4&accept-language=tr&q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (a) { return (a || []).map(function (x) { return { name: String(x.display_name || '').split(',').slice(0, 3).join(',').trim(), lat: parseFloat(x.lat), lng: parseFloat(x.lon) }; }).filter(function (x) { return isFinite(x.lat) && isFinite(x.lng); }); });
+  }
+  function pinBtns(list, attr) {
+    return list.map(function (r, i) { return '<button class="btn" type="button" ' + attr + '="' + i + '">' + esc(r.name) + '</button>'; }).join('');
+  }
+  function clearPin() { PIN.sel = null; PIN.res = []; var r = $('#memPinRes'), t = $('#memPinSt'); if (r) r.innerHTML = ''; if (t) t.textContent = ''; }
+  $('#memForm').addEventListener('reset', function () { setTimeout(clearPin, 0); });
+  $('#memFind').addEventListener('click', function () {
+    var q = $('#memPlace').value.trim(), st = $('#memPinSt');
+    if (!q) { st.textContent = 'Önce “Nerede” alanına bir yer adı yaz.'; return; }
+    st.textContent = 'Aranıyor…';
+    geoSearch(q).then(function (list) {
+      PIN.res = list; $('#memPinRes').innerHTML = pinBtns(list, 'data-pinres');
+      st.textContent = list.length ? 'Doğru olana dokun.' : 'Bulunamadı. Daha açık yaz (ör. Galata Kulesi, İstanbul).';
+    }).catch(function () { st.textContent = 'Arama şu an çalışmıyor. İnternetini kontrol et.'; });
+  });
+  $('#memPinRes').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pinres]'); if (!b) return;
+    var r = PIN.res[+b.dataset.pinres]; if (!r) return;
+    PIN.sel = { lat: r.lat, lng: r.lng }; $('#memPinRes').innerHTML = '';
+    if (!$('#memPlace').value.trim()) $('#memPlace').value = r.name.split(',')[0].slice(0, 60);
+    $('#memPinSt').textContent = 'Haritaya eklenecek: ' + r.name;
+  });
+  $('#memHere').addEventListener('click', function () {
+    var st = $('#memPinSt');
+    if (!navigator.geolocation) { st.textContent = 'Bu tarayıcı konum desteklemiyor.'; return; }
+    st.textContent = 'Konum alınıyor…';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      PIN.sel = { lat: pos.coords.latitude, lng: pos.coords.longitude }; $('#memPinRes').innerHTML = '';
+      st.textContent = 'Şu anki konumun haritaya eklenecek.';
+    }, function (err) { st.textContent = err && err.code === 1 ? 'Konum izni verilmedi.' : 'Konum alınamadı.'; }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 });
+  });
+  $('#pinAdd').addEventListener('click', function () { setTab('anilar'); $('#memForm').hidden = false; if (!$('#memDate').value) $('#memDate').value = ymdString(todayYMD()); $('#memTitle').focus(); });
+
+  function renderHarita() {
+    var panel = $('#p-harita'); if (!panel || panel.hidden) return;
+    var pins = state.memories.filter(hasPin), none = state.memories.filter(function (m) { return !hasPin(m); });
+    $('#pinCount').textContent = pins.length ? pins.length + ' yer' : '';
+    renderNoLoc(none);
+    var el = $('#pinMap');
+    ensureLeaflet().then(function (ok) {
+      if (!ok) { el.innerHTML = '<p class="muted" style="padding:16px">Harita yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.</p>'; return; }
+      if (!PIN.map) {
+        el.innerHTML = '';
+        PIN.map = L.map(el).setView([39, 35], 5);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(PIN.map);
+        PIN.layers = L.layerGroup().addTo(PIN.map);
+      }
+      PIN.map.invalidateSize(); PIN.layers.clearLayers();
+      var pts = [];
+      pins.forEach(function (m) {
+        var mk = L.circleMarker([m.lat, m.lng], { radius: 9, color: '#fff', weight: 3, fillColor: '#c23f2a', fillOpacity: 1 }).addTo(PIN.layers);
+        var d = parseYMD(m.date);
+        mk.bindPopup('<b>' + esc(m.title) + '</b><br>' + (d ? esc(fmtLong(d)) : '') + (m.place ? ' · ' + esc(m.place) : ''));
+        pts.push([m.lat, m.lng]);
+      });
+      var sig = pts.map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join('|');
+      if (sig !== PIN.sig) {
+        PIN.sig = sig;
+        if (pts.length > 1) PIN.map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
+        else if (pts.length === 1) PIN.map.setView(pts[0], 12);
+      }
+    });
+  }
+  window.renderHarita = renderHarita;
+  function renderNoLoc(none) {
+    var box = $('#pinNoLoc'); if (!box) return;
+    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+    if (!none.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<p class="k">Konumu olmayan anılar (' + none.length + ')</p>' + none.slice(0, 30).map(function (m) {
+      var ed = PIN.edit && PIN.edit.id === m.id;
+      return '<div class="pin-row"><div><b>' + esc(m.title) + '</b>' + (m.place ? ' <span class="muted small">· ' + esc(m.place) + '</span>' : '') + '</div>' +
+        (ed ? '<div class="add-row"><input type="text" id="pinQ" maxlength="80" value="' + esc(PIN.edit.q != null ? PIN.edit.q : (m.place || '')) + '" placeholder="Yer adı"><button class="btn" type="button" data-pinfind="' + esc(m.id) + '">Bul</button></div><div class="pin-res">' + pinBtns(PIN.edit.res || [], 'data-pinpick') + '</div><p class="muted small">' + esc(PIN.edit.msg || '') + '</p>'
+          : '<div><button class="btn" type="button" data-pinedit="' + esc(m.id) + '">Konum ekle</button></div>') + '</div>';
+    }).join('');
+  }
+  $('#p-harita').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.pinedit) { PIN.edit = { id: b.dataset.pinedit, res: [], msg: '' }; renderNoLoc(state.memories.filter(function (m) { return !hasPin(m); })); var q = $('#pinQ'); if (q) q.focus(); }
+    else if (b.dataset.pinfind) {
+      var q2 = $('#pinQ').value.trim(); if (!q2) return;
+      PIN.edit.q = q2; PIN.edit.msg = 'Aranıyor…'; PIN.edit.res = [];
+      var none = state.memories.filter(function (m) { return !hasPin(m); });
+      renderNoLoc(none);
+      geoSearch(q2).then(function (list) { PIN.edit.res = list; PIN.edit.msg = list.length ? 'Doğru olana dokun.' : 'Bulunamadı. Daha açık yaz.'; })
+        .catch(function () { PIN.edit.msg = 'Arama şu an çalışmıyor.'; })
+        .then(function () { document.activeElement.blur(); renderNoLoc(state.memories.filter(function (m) { return !hasPin(m); })); });
+    } else if (b.dataset.pinpick != null && b.dataset.pinpick !== '') {
+      var r = (PIN.edit && PIN.edit.res || [])[+b.dataset.pinpick]; if (!r) return;
+      var id = PIN.edit.id, m0 = state.memories.filter(function (x) { return x.id === id; })[0];
+      var patch = { lat: r.lat, lng: r.lng }; if (m0 && !m0.place) patch.place = r.name.split(',')[0].slice(0, 60);
+      PIN.edit = null;
+      state.db.doc('memories/' + id).update(patch).then(function () { toast('Haritaya eklendi.'); }).catch(fail);
+    }
+  });
+
+  /* ---------- Hava durumu ve yerel saat (Mesafe sayfası) ---------- */
+  var WX = { data: {}, busy: {} };
+  var WX_TXT = { 0: 'Açık', 1: 'Çoğunlukla açık', 2: 'Parçalı bulutlu', 3: 'Kapalı', 45: 'Sisli', 48: 'Sisli', 51: 'Çisenti', 53: 'Çisenti', 55: 'Çisenti', 56: 'Dondurucu çisenti', 57: 'Dondurucu çisenti', 61: 'Hafif yağmur', 63: 'Yağmurlu', 65: 'Kuvvetli yağmur', 66: 'Dondurucu yağmur', 67: 'Dondurucu yağmur', 71: 'Hafif kar', 73: 'Karlı', 75: 'Yoğun kar', 77: 'Kar taneleri', 80: 'Sağanak', 81: 'Sağanak', 82: 'Şiddetli sağanak', 85: 'Kar sağanağı', 86: 'Kar sağanağı', 95: 'Gök gürültülü', 96: 'Dolu ihtimali', 99: 'Dolu ihtimali' };
+  function loadWx(k, d) {
+    var cur = WX.data[k];
+    if (cur && Math.abs(cur.lat - d.lat) < .1 && Math.abs(cur.lng - d.lng) < .1 && Date.now() - cur.at < 900000) return;
+    if (WX.busy[k]) return; WX.busy[k] = true;
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + d.lat.toFixed(3) + '&longitude=' + d.lng.toFixed(3) + '&current=temperature_2m,weather_code&timezone=auto')
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.current) { WX.data[k] = { lat: d.lat, lng: d.lng, at: Date.now(), temp: j.current.temperature_2m, code: j.current.weather_code, tz: j.timezone, off: j.utc_offset_seconds || 0 }; } })
+      .catch(function () {}).then(function () { WX.busy[k] = false; renderWx(); });
+  }
+  function renderWx() {
+    var box = $('#distWx'); if (!box) return;
+    var nm = names(), me = state.me, ot = other(), parts = [], offs = {};
+    [me, ot].forEach(function (k) {
+      var d = LOC.docs[k]; if (!validLoc(d)) return;
+      loadWx(k, d);
+      var w = WX.data[k], time = '';
+      if (w) { try { time = new Date().toLocaleTimeString('tr-TR', { timeZone: w.tz, hour: '2-digit', minute: '2-digit' }); } catch (e) {} offs[k] = w.off; }
+      parts.push('<div class="panel"><p class="k">' + esc(nm[k] || '') + '</p>' + (w ? '<p class="t">' + Math.round(w.temp) + '°C</p><p class="sub">' + esc(WX_TXT[w.code] || '') + '</p><p class="sub">Yerel saat ' + esc(time) + '</p>' : '<p class="sub">Hava durumu alınıyor…</p>') + '</div>');
+    });
+    var diff = (offs[me] != null && offs[ot] != null) ? (offs[ot] - offs[me]) / 3600 : 0;
+    box.innerHTML = parts.join('') + (diff ? '<p class="muted small" style="grid-column:1/-1">' + esc(nm[ot]) + ' ile aranızda ' + Math.abs(diff) + ' saat fark var.</p>' : '');
+  }
+  setInterval(function () { if (!$('#p-mesafe').hidden) renderWx(); }, 60000);
+
+  /* ---------- Günlük durum ---------- */
+  var STATUS = ['Eve vardım', 'Yoldayım', 'İşteyim', 'Müsaitim', 'Meşgulum', 'Uyuyorum'];
+  function renderStatus() {
+    var box = $('#statusBox'); if (!box || !state.me) return;
+    var nm = names(), me = state.me, ot = other(), st = LOC.st || {}, h = '<p class="k">Şu an</p>';
+    [ot, me].forEach(function (k) {
+      var d = st[k];
+      h += '<p style="margin-top:6px"><b>' + esc(nm[k] || '') + ':</b> ' + (d && d.text ? esc(d.text) + ' <span class="muted small">· ' + esc(fmtAgo(d.at || 0)) + '</span>' : '<span class="muted">Henüz durum yok</span>') + '</p>';
+    });
+    var mine = st[me] && st[me].text;
+    h += '<div class="status-chips">' + STATUS.map(function (t) { return '<button class="btn' + (mine === t ? ' on' : '') + '" type="button" data-status="' + esc(t) + '">' + esc(t) + '</button>'; }).join('') + (mine ? '<button class="link-btn" type="button" data-status="">Temizle</button>' : '') + '</div>';
+    box.innerHTML = h;
+  }
+  $('#statusBox').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-status]'); if (!b) return;
+    var t = b.dataset.status, ref = state.db.doc('seen/st' + state.me);
+    if (!t) { ref.delete().catch(fail); return; }
+    ref.set({ text: t, at: Date.now() }).then(function () { sendNote('Durumum: ' + t); }).catch(fail);
+  });
+  setInterval(function () { if (inMain() && state.tab === 'bugun') renderStatus(); }, 60000);
+
+  /* ---------- Yedek ---------- */
+  $('#btnBackup').addEventListener('click', function () {
+    var st = $('#backupSt');
+    try {
+      var s0 = Object.assign({}, state.settings || {}); delete s0.ntfyBase;
+      var data = { uygulama: 'Posta Kutumuz', yedekTarihi: new Date().toISOString(), ayarlar: s0, anilar: state.memories, yapilacaklar: state.todos, sarkilar: state.tracks, mesajlar: state.notes,
+        takvim: X.events, dilekler: X.wishes, mektuplar: X.letters, cevaplar: X.answers, ruhHali: X.moods, hediyeler: X.items, albumler: X.albums, girisFotograflari: state.welcome, gorusme: X.meet };
+      var files = {};
+      (function walk(o) {
+        if (!o || typeof o !== 'object') return;
+        if (Array.isArray(o)) { o.forEach(walk); return; }
+        Object.keys(o).forEach(function (k) { var v = o[k]; if (typeof v === 'string' && ID_RE.test(v) && /^(photoId|pendingPhotoId|assetId)$/.test(k)) files[v] = blobUrl(v); else walk(v); });
+      })(data);
+      (X.albums || []).forEach(function (al) { (al.photos || []).forEach(function (ph) { if (ph && ID_RE.test(ph.id || '')) files[ph.id] = blobUrl(ph.id); }); });
+      data.dosyalar = files;
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      var d = new Date(), pad = function (n) { return String(n).padStart(2, '0'); };
+      a.href = url; a.download = 'posta-yedek-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+      st.textContent = 'Yedek indirildi (' + Object.keys(files).length + ' dosya bağlantısı).';
+    } catch (e) { st.textContent = 'Yedek alınamadı. Sayfayı yenileyip tekrar dene.'; }
+  });
 
   function renderExtras() {
     renderExtras2(); renderCalendar(); renderUpcomingHome(); renderWishes(); renderLetters(); renderGifts(); renderDaily(); renderOzet();
@@ -2589,6 +2839,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     var onErr = function (e) { toast('Veriler alınamadı. Sayfayı yenile.'); };
     db.doc('app/settings').onSnapshot(function (snap) {
       state.settings = snap.exists ? snap.data() : null; route(); if (inMain()) renderPush();
+      if (state.settings && state.settings.ntfyBase && isAdmin() && state.db) { state.db.doc('app/settings').update({ ntfyBase: '' }).catch(function () {}); }
     }, onErr);
     var membersUnsub = null;
     auth.onChange(function (u, ev) {
@@ -2609,7 +2860,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     state.startData = function () {
     db.collection('memories').onSnapshot(function (snap) {
       state.memories = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
-      if (inMain()) { renderMemories(); renderHome(); renderTimeline(); }
+      if (inMain()) { renderMemories(); renderHome(); renderTimeline(); renderHarita(); }
     }, onErr);
     db.collection('todos').onSnapshot(function (snap) {
       state.todos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
@@ -2643,9 +2894,9 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     db.doc('app/meet').onSnapshot(function (snap) { X.meet = snap.exists ? snap.data() : null; if (inMain()) renderMeet(); }, function () {});
     db.collection('seen').onSnapshot(function (snap) {
       var s = {};
-      var lc = {};
-      snap.docs.forEach(function (d) { if (d.id === 'locA' || d.id === 'locB') lc[d.id.slice(3)] = d.data() || null; else s[d.id] = (d.data() || {}).at || 0; });
-      state.seen = s; LOC.docs = lc; resumeLoc(); if (inMain() && !$('#p-mesafe').hidden) renderMesafe();
+      var lc = {}, sc = {}, nt = '', hm = {};
+      snap.docs.forEach(function (d) { if (d.id === 'locA' || d.id === 'locB') lc[d.id.slice(3)] = d.data() || null; else if (d.id === 'stA' || d.id === 'stB') sc[d.id.slice(2)] = d.data() || null; else if (d.id === 'ntfy') { nt = (d.data() || {}).base || ''; } else if (d.id === 'home') { hm = d.data() || {}; } else s[d.id] = (d.data() || {}).at || 0; });
+      state.seen = s; LOC.docs = lc; LOC.st = sc; LOC.ntfy = nt; LOC.home = hm; resumeLoc(); renderStatus(); renderPush(); if (inMain() && !$('#p-mesafe').hidden) { renderMesafe(); renderWx(); }
       if (inMain()) renderNotes();
     }, onErr);
     };
