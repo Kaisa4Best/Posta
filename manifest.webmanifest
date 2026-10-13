@@ -1,0 +1,22 @@
+{
+  "name": "Posta Kutumuz",
+  "short_name": "Posta Kutumuz",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eceff2",
+  "theme_color": "#c23f2a",
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

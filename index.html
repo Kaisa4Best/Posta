@@ -1,0 +1,2304 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Posta Kutumuz</title>
+<meta name="theme-color" content="#c23f2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Posta Kutumuz">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<script src="config.js"></script>
+<script>
+(function () {
+  var cfg = window.SUPABASE_CONFIG || {};
+  window.blobUrl = function (id) { return String(cfg.url || '').replace(/\/$/, '') + '/storage/v1/object/public/u/' + id; };
+  var resolve; window.__fbReady = new Promise(function (r) { resolve = r; });
+  window.__fbResolve = resolve;
+  window.__host = { use: function (n) { return window.__fbReady.then(function (s) { return (s && s[n]) || null; }); } };
+})();
+</script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+
+try {
+  var cfg = window.SUPABASE_CONFIG;
+  if (!cfg || !cfg.url || String(cfg.url).indexOf('BURAYA') >= 0 || !cfg.anonKey || String(cfg.anonKey).indexOf('BURAYA') >= 0) throw new Error('config');
+  var remember = true;
+  var storage = {
+    getItem: function (k) { try { return localStorage.getItem(k) || sessionStorage.getItem(k); } catch (e) { return null; } },
+    setItem: function (k, v) { try { if (remember) { localStorage.setItem(k, v); sessionStorage.removeItem(k); } else { sessionStorage.setItem(k, v); localStorage.removeItem(k); } } catch (e) {} },
+    removeItem: function (k) { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch (e) {} }
+  };
+  var sb = createClient(cfg.url, cfg.anonKey, { auth: { storage: storage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+
+  var COLS = ['memories', 'todos', 'tracks', 'notes', 'seen', 'events', 'wishes', 'letters', 'answers', 'moods', 'items', 'albums', 'welcome'];
+  var mapErr = function (e) {
+    var m = String((e && e.message) || ''), c = (e && (e.code || e.status)) + '';
+    if (c === '42501' || /row-level security|permission denied/i.test(m)) return { code: 'permission_denied' };
+    if (c === '429') return { code: 'resource_exhausted' };
+    return { code: 'error', message: m };
+  };
+  // Yerel dinleyiciler: yazma sonrası anında yenile
+  var locals = [];
+  var bump = function (path) {
+    var col = path.split('/')[0];
+    locals.slice().forEach(function (l) { if (l.col === col || l.path === path) l.run(); });
+  };
+  var rowToSnap = function (r) { return { id: r.path.split('/').pop(), data: function () { return r.data; }, metadata: { hasPendingWrites: false } }; };
+
+  var docRef = function (path) {
+    var self = {
+      onSnapshot: function (cb, eb) {
+        var alive = true, run = async function () {
+          var r = await sb.from('docs').select('data').eq('path', path).maybeSingle();
+          if (!alive) return;
+          if (r.error) { if (eb) eb(mapErr(r.error)); return; }
+          cb({ exists: !!r.data, id: path.split('/').pop(), data: function () { return r.data ? r.data.data : undefined; } });
+        };
+        var l = { path: path, col: null, run: run }; locals.push(l);
+        var ch = sb.channel('d:' + path + ':' + Math.random().toString(36).slice(2))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'path=eq.' + path }, run)
+          .subscribe();
+        run();
+        return function () { alive = false; locals.splice(locals.indexOf(l), 1); sb.removeChannel(ch); };
+      },
+      set: async function (d) { var r = await sb.from('docs').upsert({ path: path, col: path.split('/')[0], id: path.split('/').pop(), data: d, updated_at: new Date().toISOString() }); if (r.error) throw mapErr(r.error); bump(path); },
+      update: async function (patch) {
+        var g = await sb.from('docs').select('data').eq('path', path).maybeSingle();
+        if (g.error) throw mapErr(g.error);
+        if (!g.data) throw { code: 'not_found' };
+        var r = await sb.from('docs').update({ data: Object.assign({}, g.data.data, patch), updated_at: new Date().toISOString() }).eq('path', path);
+        if (r.error) throw mapErr(r.error); bump(path);
+      },
+      delete: async function () { var r = await sb.from('docs').delete().eq('path', path); if (r.error) throw mapErr(r.error); bump(path); }
+    };
+    return self;
+  };
+  var colRef = function (name) {
+    var mk = function (ord, lim) {
+      return {
+        onSnapshot: function (cb, eb) {
+          var alive = true, prev = null;
+          var run = async function () {
+            var r = await sb.from('docs').select('path,data').eq('col', name);
+            if (!alive) return;
+            if (r.error) { if (eb) eb(mapErr(r.error)); return; }
+            var rows = r.data || [];
+            if (ord) { rows.sort(function (a, b) { return ((a.data[ord[0]] || 0) - (b.data[ord[0]] || 0)) * (ord[1] === 'desc' ? -1 : 1); }); }
+            if (lim) rows = rows.slice(0, lim);
+            var docs = rows.map(rowToSnap), ids = docs.map(function (d) { return d.id; });
+            var added = prev === null ? ids : ids.filter(function (i) { return prev.indexOf(i) < 0; });
+            prev = ids;
+            cb({ docs: docs, docChanges: function () { return docs.filter(function (d) { return added.indexOf(d.id) >= 0; }).map(function (d) { return { type: 'added', doc: d }; }); } });
+          };
+          var l = { path: null, col: name, run: run }; locals.push(l);
+          var ch = sb.channel('c:' + name + ':' + Math.random().toString(36).slice(2))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'col=eq.' + name }, run)
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'docs' }, function (p) { var o = p && p.old; if (!o || !o.path || o.path.indexOf(name + '/') === 0) run(); })
+            .subscribe();
+          run();
+          return function () { alive = false; locals.splice(locals.indexOf(l), 1); sb.removeChannel(ch); };
+        },
+        add: async function (d) {
+          var id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/-/g, '');
+          var path = name + '/' + id;
+          var r = await sb.from('docs').insert({ path: path, col: name, id: id, data: d }); if (r.error) throw mapErr(r.error); bump(path);
+          return { id: id };
+        },
+        orderBy: function (f, dir) { return mk([f, dir || 'asc'], lim); },
+        limit: function (n) { return mk(ord, n); }
+      };
+    };
+    return mk(null, null);
+  };
+  var db = { doc: docRef, collection: colRef };
+
+  var rand = function () { var a = new Uint8Array(16); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return x.toString(16).padStart(2, '0'); }).join(''); };
+  var assets = {
+    upload: async function (file, opts) {
+      var id = rand();
+      var r = await sb.storage.from('u').upload(id, file, { contentType: (opts && opts.type) || file.type || 'application/octet-stream', upsert: false });
+      if (r.error) { var m = String(r.error.message || ''); throw { code: /size|exceed/i.test(m) ? 'too_large' : /mime|type/i.test(m) ? 'unsupported_type' : /security|policy|permission/i.test(m) ? 'not_granted' : 'upload_failed' }; }
+      return { id: id };
+    },
+    delete: async function (id) { await sb.storage.from('u').remove([id]); }
+  };
+
+  var authErr = function (e) {
+    var m = String((e && e.message) || ''), c = String((e && e.code) || '');
+    if (c === 'invalid_credentials' || /invalid login credentials/i.test(m)) return { code: 'auth/invalid-credential' };
+    if (c === 'user_already_exists' || /already registered/i.test(m)) return { code: 'auth/email-already-in-use' };
+    if (c === 'weak_password' || /password should be|at least/i.test(m)) return { code: 'auth/weak-password' };
+    if (c === 'email_not_confirmed' || /not confirmed/i.test(m)) return { code: 'auth/email-not-confirmed' };
+    if (c === 'validation_failed' || /valid email|invalid email/i.test(m)) return { code: 'auth/invalid-email' };
+    if (/rate limit|too many/i.test(m) || e.status === 429) return { code: 'auth/too-many-requests' };
+    if (/fetch|network/i.test(m)) return { code: 'auth/network-request-failed' };
+    return { code: 'auth/' + (c || 'error') };
+  };
+  var auth = {
+    onChange: function (cb) {
+      var last = '__none__';
+      var h = function (ev, sess) {
+        var email = sess && sess.user ? String(sess.user.email || '').toLowerCase() : '';
+        if (email === last && ev !== 'PASSWORD_RECOVERY') return;
+        last = email; cb(email ? { email: email } : null, ev);
+      };
+      var sub = sb.auth.onAuthStateChange(h);
+      sb.auth.getSession().then(function (r) { h('INITIAL', r && r.data ? r.data.session : null); });
+      return function () { sub.data.subscription.unsubscribe(); };
+    },
+    signIn: async function (e, p, rem) { remember = rem !== false; var r = await sb.auth.signInWithPassword({ email: e, password: p }); if (r.error) throw authErr(r.error); },
+    signUp: async function (e, p, rem) {
+      remember = rem !== false;
+      var r = await sb.auth.signUp({ email: e, password: p });
+      if (r.error) throw authErr(r.error);
+      if (!r.data.session) throw { code: 'auth/email-not-confirmed' };
+    },
+    signOut: function () { return sb.auth.signOut(); },
+    reset: async function (e) { var r = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname }); if (r.error) throw authErr(r.error); },
+    updatePw: async function (p) { var r = await sb.auth.updateUser({ password: p }); if (r.error) throw authErr(r.error); }
+  };
+  window.__fbResolve({ db: db, assets: assets, auth: auth });
+} catch (e) { console.error(e); window.__fbResolve(null); }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Hanken+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: posta temalı. Üstte hava postası şeridi, gün sayacı bir posta damgası,
+   anılar kartpostal, liste ve müzik sakin ve düz kalır. Cesaret sadece şeritte ve damgada. */
+:root {
+  --bg: #eceff2;
+  --surface: #f9fafb;
+  --surface-2: #e1e6eb;
+  --ink: #18202b;
+  --muted: #566170;
+  --line: #cdd4db;
+  --red: #c23f2a;
+  --blue: #285a9c;
+  --on-red: #ffffff;
+  --display: 'Bricolage Grotesque', 'Arial Narrow', system-ui, sans-serif;
+  --body: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --radius: 10px;
+  --gutter: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --surface: #1a212b; --surface-2: #232c38; --ink: #e9e7e2; --muted: #9aa5b2;
+    --line: #2c3643; --red: #f0735c; --blue: #6fa0e0; --on-red: #11161d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #1a212b; --surface-2: #232c38; --ink: #e9e7e2; --muted: #9aa5b2;
+  --line: #2c3643; --red: #f0735c; --blue: #6fa0e0; --on-red: #11161d; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--body); }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.airmail { height: 26px; overflow: hidden; background: #0b0f15; border-bottom: 1px solid #1f2733; position: relative; }
+.airmail::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #1a212b; }
+.hearts { position: relative; display: flex; height: 100%; align-items: center; }
+.hearts i { flex: none; width: 26px; text-align: center; font-style: normal; font-size: 15px; line-height: 26px; color: #ff4d8d; opacity: .3; animation: led 4.8s ease-in-out infinite, rgb 7.2s linear infinite; animation-delay: var(--d), var(--d); }
+@keyframes led { 0%, 100% { opacity: .22; transform: scale(.85); } 30% { opacity: 1; transform: scale(1.1); } 60% { opacity: .5; transform: scale(.95); } }
+@keyframes rgb { 0%, 100% { color: #ff4d8d; text-shadow: 0 0 6px #ff4d8d, 0 0 14px #ff4d8d; } 33% { color: #ff2a3c; text-shadow: 0 0 6px #ff2a3c, 0 0 14px #ff2a3c; } 66% { color: #3d8bff; text-shadow: 0 0 6px #3d8bff, 0 0 14px #3d8bff; } }
+@media (prefers-reduced-motion: reduce) { .hearts i { animation: none; opacity: .85; } }
+.wrap { max-width: 980px; margin-inline: auto; padding-inline: var(--gutter); padding-block: 20px 120px; }
+.narrow { max-width: 440px; margin-inline: auto; padding-block: 56px 0; }
+
+.kicker { font: 500 13px var(--mono); letter-spacing: .06em; color: var(--muted); }
+.big-title { font-weight: 800; font-size: clamp(28px, 7vw, 40px); line-height: 1.1; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+/* Controls */
+.btn { font: 500 15px/1 var(--body); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--red); border-color: var(--red); color: var(--on-red); font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn[disabled] { opacity: .55; cursor: default; }
+.link-btn { background: none; border: 0; padding: 8px 0; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link-btn:hover { color: var(--ink); }
+.link-btn.danger { color: var(--red); font-weight: 700; }
+
+.form { display: grid; gap: 14px; margin-top: 20px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > label, .label { font: 500 13px var(--mono); letter-spacing: .03em; color: var(--muted); }
+input[type=text], input[type=password], input[type=email], input[type=date], input[type=url], textarea {
+  width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; min-width: 0;
+}
+textarea { min-height: 96px; resize: vertical; }
+input[type=file] { font: inherit; font-size: 14px; max-width: 100%; width: 100%; color: var(--muted); border: 1px dashed var(--muted); border-radius: 10px; padding: 10px; background: var(--surface); cursor: pointer; }
+input[type=file]::file-selector-button { font: 700 14px var(--body); margin-right: 12px; padding: 10px 14px; border: 0; border-radius: 8px; background: var(--red); color: var(--on-red); cursor: pointer; }
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 14px; }
+.check { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.check input { width: 20px; height: 20px; accent-color: var(--red); }
+.err { color: var(--red); font-size: 14px; min-height: 20px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.chip span { display: block; padding: 10px 16px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); font-weight: 500; }
+.chip input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* Header + tabs */
+.top { display: flex; align-items: center; gap: 14px; padding-right: 80px; min-height: 48px; }
+.top-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.who { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); min-width: 0; }
+.who img { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+.who span { overflow-wrap: anywhere; }
+.icon-btn { position: relative; }
+.dot { position: absolute; top: 3px; right: 3px; width: 11px; height: 11px; border-radius: 50%; background: var(--red); border: 2px solid var(--bg); }
+.brandbox { min-width: 0; }
+.scrim { position: fixed; inset: 0; z-index: 30; background: rgba(10, 14, 20, .5); }
+.drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 31; width: min(300px, 84vw); background: var(--surface); border-right: 1px solid var(--line); padding: calc(18px + env(safe-area-inset-top, 0px)) 12px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 2px; overflow-y: auto; transform: translateX(-100%); visibility: hidden; transition: transform .22s ease, visibility .22s; }
+.drawer.open { transform: none; visibility: visible; }
+.drawer .who { flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 12px 16px; }
+.nav-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 13px 12px; font: 500 17px var(--body); color: var(--ink); cursor: pointer; }
+.nav-item:hover { background: var(--surface-2); }
+.nav-item[aria-current="page"] { background: var(--surface-2); font-weight: 700; }
+.drawer-sep { height: 1px; background: var(--line); margin: 10px 8px; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+
+.switch { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: var(--gutter); z-index: 20; width: 64px; height: 34px; padding: 0; border-radius: 99px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+.switch svg { position: absolute; top: 7px; width: 18px; height: 18px; color: var(--muted); fill: currentColor; }
+.switch .sw-sun { left: 8px; }
+.switch .sw-moon { right: 8px; }
+.switch .knob { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); transition: transform .2s ease; }
+.switch[aria-checked="true"] .knob { transform: translateX(30px); }
+@media (prefers-reduced-motion: reduce) { .switch .knob { transition: none; } }
+
+.show { position: relative; aspect-ratio: 4 / 3; max-width: 100%; border-radius: var(--radius); overflow: hidden; background: var(--surface-2); margin-bottom: 24px; cursor: pointer; }
+.show img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .8s ease; }
+.show img.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .show img { transition: none; } }
+/* Giriş ekranı: tam ekran fotoğraf, üstünde form kartı */
+[hidden] { display: none !important; }
+body.on-login .airmail { display: none; }
+body.on-login .wrap { max-width: none; padding: 0; }
+.lg { position: relative; min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: flex-end; padding: 24px clamp(16px, 6vw, 88px); overflow: hidden; background: var(--bg); }
+.lg-art { position: absolute; inset: 0; background: linear-gradient(135deg, var(--surface-2), var(--bg)); display: flex; justify-content: center; align-items: center; }
+.lg-art .show { position: absolute; inset: 0; aspect-ratio: auto; margin: 0; border-radius: 0; cursor: default; }
+.lg-art.has-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,12,18,.72), rgba(8,12,18,.08) 55%, rgba(8,12,18,.3)); pointer-events: none; z-index: 1; }
+.lg-mark { color: var(--red); width: min(300px, 50vw); margin-right: 30%; }
+.lg-mark .pm { width: 100%; }
+.lg-art.has-photo .lg-mark { display: none; }
+.lg-cap { position: absolute; left: clamp(20px, 6vw, 88px); bottom: clamp(24px, 6vh, 64px); right: 50%; z-index: 2; color: var(--ink); }
+.lg-art.has-photo .lg-cap { color: #fff; text-shadow: 0 1px 12px rgba(0,0,0,.45); }
+.lg-names { font: 800 clamp(30px, 5vw, 56px)/1.05 var(--display); overflow-wrap: anywhere; }
+.lg-days { margin-top: 8px; font: 500 15px var(--mono); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.lg-form { position: relative; z-index: 3; width: min(420px, 100%); padding: clamp(24px, 4vw, 36px); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 60px rgba(8,12,18,.28); }
+.lg-title { font-size: clamp(30px, 6vw, 38px); font-weight: 800; line-height: 1.1; margin-top: 8px; }
+@media (max-width: 760px) { .lg { justify-content: center; align-items: flex-end; padding-bottom: 28px; } .lg-cap { right: 20px; top: 70px; bottom: auto; } .lg-mark { margin-right: 0; width: min(180px, 46vw); align-self: flex-start; margin-top: 90px; } .lg-form { max-height: 78vh; overflow-y: auto; } }
+.home-show { aspect-ratio: 16 / 9; max-height: 60vh; margin: 8px 0 4px; }
+.home-cap { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 28px 16px 12px; color: #fff; font: 500 13px var(--mono); letter-spacing: .05em; background: linear-gradient(to top, rgba(8,12,18,.65), transparent); pointer-events: none; }
+@media (max-width: 760px) { .home-show { aspect-ratio: 4 / 3; } }
+
+.mood-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.mood-btn { font-size: 24px; line-height: 1; width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+.mood-btn.on { border-color: var(--red); background: var(--surface-2); box-shadow: 0 0 0 2px var(--red); }
+.ans { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.lock { border-style: dashed; }
+select:focus-visible, input[type=time]:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.ms { position: relative; overflow: hidden; background: var(--surface); }
+.rain { position: absolute; inset: 0; pointer-events: none; }
+.rain i { position: absolute; top: -20px; font-style: normal; color: var(--red); animation: fall 4s linear infinite; }
+@keyframes fall { to { transform: translateY(220px) rotate(20deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rain { display: none; } }
+.tl { position: relative; margin-top: 12px; padding-left: 28px; }
+.tl::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+.tl-year { font: 800 22px var(--display); margin: 22px 0 8px -28px; }
+.tl-item { position: relative; padding-bottom: 20px; }
+.tl-dot { position: absolute; left: -28px; top: 4px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg); border: 3px solid var(--red); }
+.tl-ms .tl-dot, .tl-start .tl-dot { background: var(--red); }
+.tl-next .tl-dot { border-style: dashed; border-color: var(--muted); }
+.tl-next { opacity: .75; }
+.tl-ev .tl-dot { border-color: var(--blue); }
+.tl-t { font: 800 20px/1.25 var(--display); margin-top: 2px; overflow-wrap: anywhere; }
+.tl-img { display: block; width: 100%; max-width: 360px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; margin-top: 8px; background: var(--surface-2); }
+.alb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 14px; }
+.alb-card { display: block; text-align: left; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; cursor: pointer; color: var(--ink); font: inherit; }
+.alb-card img, .alb-empty { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--surface-2); }
+.alb-empty { display: grid; place-items: center; color: var(--muted); }
+.alb-name { display: block; padding: 10px 12px 0; font: 800 17px var(--display); overflow-wrap: anywhere; }
+.alb-count { display: block; padding: 2px 12px 12px; font: 400 13px var(--mono); color: var(--muted); }
+.ph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 10px; margin-top: 16px; }
+.ph-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.ph-btn img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--surface-2); }
+.ph-wait { aspect-ratio: 1; display: grid; place-items: center; text-align: center; padding: 8px; border: 1px dashed var(--muted); border-radius: 6px; color: var(--muted); font-size: 14px; }
+.ph.pending .ph-btn img { outline: 2px solid var(--red); }
+.ph-ctl { display: flex; gap: 12px; flex-wrap: wrap; }
+.guide { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+details summary { cursor: pointer; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+.thumb { min-width: 0; }
+.thumb img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: var(--surface-2); }
+.pend { border-color: var(--red); margin-bottom: 18px; }
+.pend-row { display: flex; gap: 14px; align-items: flex-start; margin-top: 14px; }
+.pend-row img { width: 112px; max-width: 38%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; background: var(--surface-2); flex: none; }
+.pend-info { min-width: 0; flex: 1; }
+.pending-note { margin-top: 8px; font-size: 14px; color: var(--muted); }
+dialog { max-height: 90vh; overflow-y: auto; }
+
+.sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-block: 26px 14px; }
+.sec-head h2 { font-size: 26px; font-weight: 800; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 28px; align-items: center; padding-block: 28px 16px; }
+.hero-mark { display: flex; align-items: center; gap: 6px; color: var(--red); }
+.pm { width: min(240px, 62vw); height: auto; flex: none; }
+.waves { width: 100px; color: var(--muted); flex: none; }
+.hero-line { font-size: clamp(24px, 4.4vw, 34px); font-weight: 800; line-height: 1.15; }
+.split { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font: 500 15px var(--mono); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .hero { grid-template-columns: minmax(0, 1fr); } .waves { display: none; } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin-top: 8px; }
+.k { font: 500 13px var(--mono); letter-spacing: .03em; color: var(--muted); }
+.v { font: 800 22px/1.2 var(--display); margin-top: 6px; font-variant-numeric: tabular-nums; }
+.sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+.home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 12px; }
+.otd { margin-top: 12px; border-color: var(--red); }
+.otd p + p { margin-top: 4px; }
+
+/* Memories */
+.mem-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; align-items: start; }
+.mem { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; min-width: 0; }
+.mem img { display: block; width: 100%; max-width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--surface-2); }
+.mem img.broken { display: none; }
+.mem-body { padding: 14px 16px 10px; }
+.stamp { font: 500 13px var(--mono); letter-spacing: .05em; color: var(--red); font-variant-numeric: tabular-nums; }
+.mem h3 { font-size: 22px; font-weight: 800; line-height: 1.2; margin-top: 4px; overflow-wrap: anywhere; }
+.mem-text { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mem-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: var(--muted); font-size: 14px; }
+.empty { border: 1px dashed var(--muted); border-radius: var(--radius); padding: 22px 18px; }
+.empty .t { font: 800 20px var(--display); }
+.empty p + p { margin-top: 6px; color: var(--muted); }
+.mem-form { margin-bottom: 18px; }
+
+/* Todos */
+.add-row { display: flex; gap: 10px; }
+.add-row input { flex: 1; }
+.bar { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+.bar > i { display: block; height: 100%; background: var(--red); }
+.todo { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.todo input { width: 22px; height: 22px; accent-color: var(--red); margin-top: 2px; flex: none; }
+.todo .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.todo.done .t { color: var(--muted); text-decoration: line-through; }
+.todo .meta { font: 400 12px var(--mono); color: var(--muted); margin-top: 2px; text-decoration: none; }
+.todo-actions { display: flex; gap: 14px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.sub-head { font: 500 13px var(--mono); letter-spacing: .03em; color: var(--muted); margin-block: 24px 4px; }
+
+/* Bildirimler */
+.badge { display: inline-block; min-width: 20px; margin-left: 6px; padding: 1px 6px; border-radius: 99px; background: var(--red); color: var(--on-red); font: 700 12px/1.5 var(--body); text-align: center; vertical-align: 1px; }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.quick .btn { font-size: 14px; padding: 9px 12px; }
+.notes { display: grid; gap: 10px; margin-top: 20px; }
+.note { max-width: min(100%, 520px); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.note.mine { margin-left: auto; background: var(--surface-2); }
+.note-meta { font: 500 12px var(--mono); color: var(--muted); }
+.note-text { margin-top: 4px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.note-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 4px; font-size: 13px; color: var(--muted); }
+.note-foot .new { color: var(--red); font-weight: 700; }
+
+/* Music */
+.tracks { border-top: 1px solid var(--line); margin-top: 8px; }
+.track { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.track .play { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; background: none; border: 0; color: var(--ink); text-align: left; font: 500 16px var(--body); padding: 6px 0; cursor: pointer; }
+.track .name { min-width: 0; overflow-wrap: anywhere; }
+.track.now .name { font-weight: 700; color: var(--red); }
+.eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; width: 16px; flex: none; }
+.eq i { width: 3px; background: var(--muted); height: 40%; }
+.track.now .eq i { background: var(--red); animation: eq 0.9s ease-in-out infinite; }
+.track.now .eq i:nth-child(2) { animation-delay: .2s; }
+.track.now .eq i:nth-child(3) { animation-delay: .4s; }
+.track:not(.now) .eq i { animation: none; }
+@keyframes eq { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+@media (prefers-reduced-motion: reduce) { .track.now .eq i { animation: none; height: 70%; } }
+
+.player { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; background: var(--surface); border-top: 1px solid var(--line); padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom, 0px)); }
+.player-in { max-width: 980px; margin-inline: auto; display: flex; align-items: center; gap: 12px; }
+.now-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.now-title small { display: block; font: 400 12px var(--mono); color: var(--muted); }
+.icon-btn { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.icon-btn.main { background: var(--red); border-color: var(--red); color: var(--on-red); }
+.icon-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 12; max-width: min(92vw, 460px); background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 8px; font-size: 15px; }
+
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 22px; width: min(480px, calc(100% - 32px)); }
+dialog::backdrop { background: rgba(10, 14, 20, .55); }
+dialog h2 { font-size: 24px; font-weight: 800; }
+</style>
+
+</head>
+<body>
+<div class="airmail" aria-hidden="true"><div class="hearts" id="hearts"></div></div>
+<div class="wrap">
+
+<!-- Yükleniyor -->
+<section id="v-loading">
+  <div class="narrow"><p class="kicker">Posta Kutumuz</p><p class="big-title" style="margin-top:8px">Açılıyor…</p></div>
+</section>
+
+<!-- Giriş yapılmamış -->
+<section id="v-nodb" hidden>
+  <div class="narrow">
+    <p class="kicker">Posta Kutumuz</p>
+    <h1 class="big-title" style="margin-top:8px">Bağlantı kurulamadı</h1>
+    <p class="muted" style="margin-top:12px">Supabase ayarları eksik ya da yanlış olabilir. config.js dosyasını kontrol et.</p>
+  </div>
+</section>
+
+<!-- İlk kurulum -->
+<section id="v-setup" hidden>
+  <div class="narrow">
+    <p class="kicker">Posta Kutumuz</p>
+    <h1 class="big-title" id="suTitle" style="margin-top:8px">Önce birkaç şeyi kuralım</h1>
+    <p class="muted" id="suIntro" style="margin-top:12px"></p>
+    <form class="form" id="setupForm" autocomplete="off" novalidate>
+      <div class="form" id="suBasics" style="margin-top:0">
+        <div class="row2">
+          <div class="field"><label for="suA">Senin adın</label><input type="text" id="suA" maxlength="24"></div>
+          <div class="field"><label for="suB">Sevgilinin adı</label><input type="text" id="suB" maxlength="24"></div>
+        </div>
+        <div class="field"><label for="suDate">Birlikte olduğunuz ilk gün</label><input type="date" id="suDate"><p class="muted small">Sayaç bu günden bugüne geçen günleri gösterir.</p></div>
+      </div>
+      <div class="field"><label for="suMail">Senin e-postan</label><input type="email" id="suMail" inputmode="email" autocomplete="off"></div>
+      <div class="row2">
+        <div class="field"><label for="suPw">Şifren (en az 6 karakter)</label><input type="password" id="suPw" autocomplete="new-password"></div>
+        <div class="field"><label for="suPw2">Şifre tekrar</label><input type="password" id="suPw2" autocomplete="new-password"></div>
+      </div>
+      <div class="field"><label for="suMailB">Sevgilinin e-postası</label><input type="email" id="suMailB" inputmode="email" autocomplete="off"><p class="muted small">Sevgilin giriş ekranında bu e-postayla “İlk kez giriyorum” diyerek şifresini belirler.</p></div>
+      <p class="err" id="suErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit" id="suBtn">Siteyi kur</button></div>
+    </form>
+  </div>
+</section>
+
+<!-- Hesap kapısı: katılma ve izin verilmeyen hesap -->
+<section id="v-gate" hidden>
+  <div class="narrow">
+    <p class="kicker">Posta Kutumuz</p>
+    <h1 class="big-title" id="gateTitle" style="margin-top:8px"></h1>
+    <p class="muted" id="gateText" style="margin-top:12px"></p>
+    <p class="muted small" id="gateAcct" style="margin-top:12px"></p>
+    <div class="actions" style="margin-top:20px"><button class="btn primary" type="button" id="gateBtn" hidden></button></div>
+  </div>
+</section>
+
+<!-- Giriş -->
+<section id="v-login" hidden>
+  <div class="lg">
+    <div class="lg-art" id="lgArt">
+      <div class="show" id="loginShow" hidden></div>
+      <div class="lg-mark" id="lgMark" aria-hidden="true"></div>
+      <div class="lg-cap"><p class="lg-names" id="lgNames"></p><p class="lg-days" id="lgDays"></p></div>
+    </div>
+    <div class="lg-form">
+    <p class="kicker">Posta Kutumuz</p>
+    <h1 class="lg-title">Hoş geldin</h1>
+    <p class="muted" id="lgIntro" style="margin-top:10px">Kendi e-postanla gir. İlk kez giriyorsan e-postanı yaz, şifreni o zaman belirlersin.</p>
+    <form class="form" id="loginForm" autocomplete="on" novalidate>
+      <div class="field"><label for="lgMail">E-posta</label><input type="email" id="lgMail" inputmode="email" autocomplete="username"></div>
+      <div class="field"><label for="lgPw">Şifre</label><input type="password" id="lgPw" autocomplete="current-password"></div>
+      <div class="field" id="lgRepeatRow" hidden><label for="lgPw2">Şifre tekrar</label><input type="password" id="lgPw2" autocomplete="new-password"></div>
+      <label class="check"><input type="checkbox" id="lgRemember" checked> Bu cihazda hatırla</label>
+      <p class="err" id="lgErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit" id="lgSubmit">Giriş yap</button><button class="link-btn" type="button" id="lgFirst">İlk kez giriyorum</button><button class="link-btn" type="button" id="lgForgot">Şifremi unuttum</button></div>
+    </form>
+    </div>
+  </div>
+</section>
+
+<!-- Ana site -->
+<main id="v-main" hidden>
+  <header class="top">
+    <button class="icon-btn" type="button" id="btnMenu" aria-label="Menü" aria-expanded="false" aria-controls="drawer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg>
+      <span class="dot" id="menuDot" hidden></span>
+    </button>
+    <div class="brandbox"><p class="kicker">Posta Kutumuz</p><h1 class="big-title" id="brand"></h1></div>
+  </header>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="drawer" id="drawer" aria-label="Menü">
+    <div class="who" id="who"></div>
+    <button class="nav-item" type="button" data-tab="bugun">Bugün</button>
+    <button class="nav-item" type="button" data-tab="anilar">Anılar<span class="badge" id="memBadge" hidden></span></button>
+    <button class="nav-item" type="button" data-tab="liste">Listemiz</button>
+    <button class="nav-item" type="button" data-tab="zaman">Zaman çizelgesi</button>
+    <button class="nav-item" type="button" data-tab="albumler">Albümler</button>
+    <button class="nav-item" type="button" data-tab="takvim">Takvim</button>
+    <button class="nav-item" type="button" data-tab="dilek">Dilek kutusu</button>
+    <button class="nav-item" type="button" data-tab="mektup">Mektuplar</button>
+    <button class="nav-item" type="button" data-tab="hediye">Hediye ve alışveriş</button>
+    <button class="nav-item" type="button" data-tab="ozet">Yıllık özet</button>
+    <button class="nav-item" type="button" data-tab="uygulama">Uygulama gibi aç</button>
+    <button class="nav-item" type="button" data-tab="bildirim">Bildirimler<span class="badge" id="noteBadge" hidden></span></button>
+    <button class="nav-item" type="button" data-tab="muzik">Müzik</button>
+    <div class="drawer-sep"></div>
+    <button class="nav-item" type="button" id="btnSettings">Ayarlar</button>
+    <button class="nav-item" type="button" id="btnLogout">Çıkış</button>
+  </nav>
+
+  <!-- Bugün -->
+  <section id="p-bugun" data-panel>
+    <div class="show home-show" id="homeShow" hidden aria-label="Fotoğraflarımız"><div class="home-cap" id="homeCap"></div></div>
+    <div class="hero">
+      <div class="hero-mark">
+        <div id="postmark"></div>
+        <svg class="waves" viewBox="0 0 100 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M2 10 q8 -8 16 0 t16 0 t16 0 t16 0 t16 0 t16 0"/>
+          <path d="M2 24 q8 -8 16 0 t16 0 t16 0 t16 0 t16 0 t16 0"/>
+          <path d="M2 38 q8 -8 16 0 t16 0 t16 0 t16 0 t16 0 t16 0"/>
+          <path d="M2 52 q8 -8 16 0 t16 0 t16 0 t16 0 t16 0 t16 0"/>
+        </svg>
+      </div>
+      <div>
+        <p class="hero-line" id="heroLine"></p>
+        <p class="muted" id="heroSince" style="margin-top:8px"></p>
+        <div class="split" id="heroSplit"></div>
+      </div>
+    </div>
+
+    <div class="panel otd" id="noteAlert" hidden></div>
+
+    <div class="stats">
+      <div class="panel"><p class="k">Sonraki yüzlük</p><p class="v" id="stHundred"></p><p class="sub" id="stHundredSub"></p></div>
+      <div class="panel"><p class="k">Yıldönümü</p><p class="v" id="stAnniv"></p><p class="sub" id="stAnnivSub"></p></div>
+    </div>
+
+    <div class="panel otd ms" id="msBox" hidden></div>
+    <div class="panel otd" id="upBox" hidden></div>
+    <div class="panel" id="meetBox" style="margin-top:12px"></div>
+    <div id="dailyBox" style="margin-top:12px"></div>
+    <div class="panel otd" id="otd" hidden></div>
+
+    <div class="home-grid">
+      <div class="panel" id="homeMem"></div>
+      <div class="panel" id="homeTodos"></div>
+    </div>
+  </section>
+
+  <!-- Anılar -->
+  <section id="p-anilar" data-panel hidden>
+    <div class="sec-head"><h2>Anılarımız</h2><div class="actions"><span class="muted small" id="memCount"></span><button class="btn" type="button" data-act="rand-mem">Rastgele anı</button><button class="btn primary" type="button" id="btnMemToggle">Anı ekle</button></div></div>
+    <div class="panel otd" id="randBox" hidden></div>
+    <div id="pendPanel" hidden></div>
+    <form class="panel form mem-form" id="memForm" hidden style="margin-top:0" autocomplete="off" novalidate>
+      <div class="field"><label for="memTitle">Başlık</label><input type="text" id="memTitle" maxlength="80" required></div>
+      <div class="row2"><div class="field"><label for="memDate">Ne zaman</label><input type="date" id="memDate" required></div><div class="field"><label for="memPlace">Nerede (isteğe bağlı)</label><input type="text" id="memPlace" maxlength="60"></div></div>
+      <div class="field"><label for="memBody">Notun (isteğe bağlı)</label><textarea id="memBody" maxlength="1500"></textarea></div>
+      <div class="field" id="memPhotoField"><label for="memPhoto" id="memPhotoLbl">Fotoğraf (isteğe bağlı)</label><input type="file" id="memPhoto" accept="image/jpeg,image/png,image/webp,image/gif"></div>
+      <p class="err" id="memErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit" id="memBtn">Kaydet</button><button class="btn" type="button" id="memCancel">Vazgeç</button></div>
+    </form>
+    <div id="memList"></div>
+  </section>
+
+  <!-- Liste -->
+  <section id="p-liste" data-panel hidden>
+    <div class="sec-head"><h2>Yapacaklarımız</h2><span class="muted small" id="todoCount"></span></div>
+    <form class="add-row" id="todoForm" autocomplete="off">
+      <label for="todoText" class="label" style="position:absolute;left:-9999px">Yeni madde</label>
+      <input type="text" id="todoText" maxlength="140" placeholder="Gidilecek yer, yapılacak şey…">
+      <button class="btn primary" type="submit">Ekle</button>
+    </form>
+    <div class="bar" id="todoBar" hidden><i id="todoBarFill"></i></div>
+    <div id="todoList"></div>
+  </section>
+
+  <!-- Bildirimler -->
+  <section id="p-bildirim" data-panel hidden>
+    <div class="sec-head"><h2>Bildirimlerimiz</h2><span class="muted small" id="noteCount"></span></div>
+    <p class="muted" style="max-width:62ch">Birbirinize kısa notlar gönderin. Karşı taraf siteyi açıkken not anında belirir. Site kapalıysa not, açtığında onu bekler. Telefona bildirim düşmez.</p>
+    <form class="add-row" id="noteForm" autocomplete="off" style="margin-top:16px">
+      <label for="noteText" class="label" style="position:absolute;left:-9999px">Yeni not</label>
+      <input type="text" id="noteText" maxlength="240" placeholder="Bir şey yaz…">
+      <button class="btn primary" type="submit">Gönder</button>
+    </form>
+    <div class="quick" aria-label="Hızlı notlar">
+      <button class="btn" type="button" data-act="quick" data-text="Seni düşünüyorum">Seni düşünüyorum</button>
+      <button class="btn" type="button" data-act="quick" data-text="Seni seviyorum">Seni seviyorum</button>
+      <button class="btn" type="button" data-act="quick" data-text="Bugün nasılsın?">Bugün nasılsın?</button>
+      <button class="btn" type="button" data-act="quick" data-text="Akşam ne yapıyoruz?">Akşam ne yapıyoruz?</button>
+      <button class="btn" type="button" data-act="quick" data-text="Eve geliyorum">Eve geliyorum</button>
+      <button class="btn" type="button" data-act="quick" data-text="Müsait olunca ara">Müsait olunca ara</button>
+    </div>
+    <div id="noteList"></div>
+  </section>
+
+  <!-- Müzik -->
+  <section id="p-muzik" data-panel hidden>
+    <div class="sec-head"><h2>Müziğimiz</h2><span class="muted small" id="trackCount"></span></div>
+    <p class="muted" style="max-width:62ch">Şarkılar siteye giriş yaptığında arka planda sırayla çalar. Çalmayı alttaki çubuktan durdurabilirsin.</p>
+    <div class="panel form" id="trackUpload" style="margin-top:16px">
+      <div class="field"><label for="trackFile">Şarkı ekle (m4a, mp3, mp4, webm; en çok 20 MB)</label><input type="file" id="trackFile" accept=".m4a,.mp3,.mp4,.webm,.aac,audio/*" multiple></div>
+      <p class="muted small" id="trackStatus" role="status"></p>
+    </div>
+    <p class="muted small" id="trackNoPerm" hidden style="margin-top:12px">Şarkı yükleme şu an kullanılamıyor.</p>
+    <p style="margin-top:12px" id="plWrap" hidden><a id="plLink" href="#" target="_blank" rel="noopener noreferrer">Spotify ya da YouTube playlistimizi aç</a></p>
+    <div class="tracks" id="trackList"></div>
+  </section>
+
+  <!-- Takvim -->
+  <section id="p-takvim" data-panel hidden>
+    <div class="sec-head"><h2>Takvimimiz</h2></div>
+    <form class="panel form" id="calForm" autocomplete="off" novalidate style="margin-top:0">
+      <div class="field"><label for="calTitle">Ne var?</label><input type="text" id="calTitle" maxlength="80" placeholder="Doğum günü, buluşma, randevu…"></div>
+      <div class="row2"><div class="field"><label for="calDate">Tarih</label><input type="date" id="calDate"></div><div class="field"><label for="calTime">Saat (isteğe bağlı)</label><input type="time" id="calTime" style="width:100%;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)"></div></div>
+      <label class="check"><input type="checkbox" id="calYearly"> Her yıl tekrar etsin</label>
+      <p class="err" id="calErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit">Ekle</button></div>
+    </form>
+    <div id="calList"></div>
+  </section>
+
+  <!-- Dilek kutusu -->
+  <section id="p-dilek" data-panel hidden>
+    <div class="sec-head"><h2>Dilek kutusu</h2></div>
+    <p class="muted" style="max-width:62ch">Yapmak ya da gitmek istediğin bir şeyi yaz. Diğeri “Listeye ekle” deyince Listemiz’e geçer ve ona not düşer.</p>
+    <form class="add-row" id="wishForm" autocomplete="off" style="margin-top:16px">
+      <label for="wishText" class="label" style="position:absolute;left:-9999px">Yeni dilek</label>
+      <input type="text" id="wishText" maxlength="140" placeholder="Bir dilek yaz…"><button class="btn primary" type="submit">Gönder</button>
+    </form>
+    <div id="wishList"></div>
+  </section>
+
+  <!-- Mektuplar -->
+  <section id="p-mektup" data-panel hidden>
+    <div class="sec-head"><h2>Mektuplar</h2></div>
+    <p class="muted" style="max-width:62ch">Diğerine bir mektup bırak, açılacağı günü seç. O güne kadar kilitli görünür. Kilit yalnızca sitede uygulanır, mektup metni kayıt alanında durur.</p>
+    <form class="panel form" id="letForm" autocomplete="off" novalidate style="margin-top:16px">
+      <div class="field"><label for="letText">Mektup</label><textarea id="letText" maxlength="3000" style="min-height:120px"></textarea></div>
+      <div class="field"><label for="letDate">Açılacağı gün</label><input type="date" id="letDate"></div>
+      <p class="err" id="letErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit">Mektubu bırak</button></div>
+    </form>
+    <div id="letList"></div>
+  </section>
+
+  <!-- Hediye ve alışveriş -->
+  <section id="p-hediye" data-panel hidden>
+    <div class="sec-head"><h2>Hediye ve alışveriş</h2></div>
+    <p class="sub-head" style="margin-top:0">Gizli hediye fikirlerim</p>
+    <p class="muted small">Bu liste diğer hesapta gösterilmez.</p>
+    <form class="add-row" id="giftForm" autocomplete="off" style="margin-top:10px">
+      <label for="giftText" class="label" style="position:absolute;left:-9999px">Hediye fikri</label>
+      <input type="text" id="giftText" maxlength="120" placeholder="Hediye fikri…"><button class="btn primary" type="submit">Ekle</button>
+    </form>
+    <div id="giftList"></div>
+    <p class="sub-head" style="margin-top:32px">Ortak alışveriş listesi</p>
+    <form class="add-row" id="shopForm" autocomplete="off" style="margin-top:10px">
+      <label for="shopText" class="label" style="position:absolute;left:-9999px">Alınacak şey</label>
+      <input type="text" id="shopText" maxlength="120" placeholder="Alınacak şey…"><button class="btn primary" type="submit">Ekle</button>
+    </form>
+    <div id="shopList"></div>
+  </section>
+
+  <!-- Yıllık özet -->
+  <section id="p-ozet" data-panel hidden>
+    <div class="sec-head"><h2>Yıllık özet</h2><div class="field" style="width:120px"><label for="ozetYear" style="position:absolute;left:-9999px">Yıl</label><select id="ozetYear" style="font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)"></select></div></div>
+    <div class="stats" id="ozetGrid"></div>
+    <div class="panel otd" id="ozetFirst" style="margin-top:12px"></div>
+  </section>
+
+  <!-- Zaman çizelgesi -->
+  <section id="p-zaman" data-panel hidden>
+    <div class="sec-head"><h2>Zaman çizelgemiz</h2><button class="btn" type="button" id="tlSort"></button></div>
+    <div class="sec-head" style="margin-top:0"><span class="muted small">Araya kalan bir güne anı ya da fotoğraf ekleyebilirsin.</span><button class="btn primary" type="button" id="tlToggle">Çizelgeye anı ekle</button></div>
+    <form class="panel form" id="tlForm" hidden autocomplete="off" novalidate style="margin-top:0;margin-bottom:18px">
+      <div class="field"><label for="tlTitle">Başlık</label><input type="text" id="tlTitle" maxlength="80"></div>
+      <div class="row2"><div class="field"><label for="tlDate">Hangi gün</label><input type="date" id="tlDate"></div><div class="field"><label for="tlPlace">Nerede (isteğe bağlı)</label><input type="text" id="tlPlace" maxlength="60"></div></div>
+      <div class="field"><label for="tlBody">Notun (isteğe bağlı)</label><textarea id="tlBody" maxlength="1500"></textarea></div>
+      <div class="field"><label for="tlPhoto">Fotoğraf (isteğe bağlı)</label><input type="file" id="tlPhoto" accept="image/jpeg,image/png,image/webp,image/gif"></div>
+      <p class="err" id="tlErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit" id="tlBtn">Kaydet</button><button class="btn" type="button" id="tlCancel">Vazgeç</button></div>
+    </form>
+    <div id="tlList"></div>
+  </section>
+
+  <!-- Albümler -->
+  <section id="p-albumler" data-panel hidden>
+    <div class="sec-head"><h2>Albümlerimiz</h2></div>
+    <form class="add-row" id="albForm" autocomplete="off"><span id="albNew" style="display:contents">
+      <label for="albTitle" class="label" style="position:absolute;left:-9999px">Albüm adı</label>
+      <input type="text" id="albTitle" maxlength="60" placeholder="Yeni albüm adı: Tatil, Doğum günü…"><button class="btn primary" type="submit">Oluştur</button></span>
+    </form>
+    <div id="albBody" style="margin-top:16px"></div>
+  </section>
+
+  <!-- Uygulama gibi aç -->
+  <section id="p-uygulama" data-panel hidden>
+    <div class="sec-head"><h2>Uygulama gibi aç</h2></div>
+    <p class="muted" style="max-width:62ch">Siteyi telefonunun ana ekranına simge olarak ekleyebilirsin. Simgeye dokununca site tam ekran, bir uygulama gibi açılır.</p>
+    <div class="panel" style="margin-top:16px"><p class="k">Önce bağlantıyı al</p><p style="margin-top:8px"><button class="btn" type="button" data-act="copy-link">Bağlantıyı kopyala</button></p><input type="text" id="linkBox" readonly hidden style="margin-top:10px" aria-label="Site bağlantısı"></div>
+    <details class="panel" style="margin-top:12px" open><summary><strong>iPhone (Safari)</strong></summary><ol class="guide">
+      <li>Siteyi <strong>Safari</strong>’de aç ve giriş yap.</li>
+      <li>Alttaki <strong>Paylaş</strong> düğmesine (kare ve yukarı ok) dokun.</li>
+      <li>Aşağı kaydır ve <strong>Ana Ekrana Ekle</strong>’yi seç.</li>
+      <li>Adı “Posta Kutumuz” yap ve <strong>Ekle</strong>’ye dokun.</li>
+    </ol></details>
+    <details class="panel" style="margin-top:12px"><summary><strong>Android (Chrome)</strong></summary><ol class="guide">
+      <li>Siteyi <strong>Chrome</strong>’da aç ve giriş yap.</li>
+      <li>Sağ üstteki <strong>⋮</strong> menüsüne dokun.</li>
+      <li><strong>Ana ekrana ekle</strong> ya da <strong>Uygulamayı yükle</strong>’yi seç.</li>
+      <li>Adı “Posta Kutumuz” yap ve <strong>Ekle</strong>’ye dokun.</li>
+    </ol></details>
+    <details class="panel" style="margin-top:12px"><summary><strong>Bilgisayar (Chrome ya da Edge)</strong></summary><ol class="guide">
+      <li>Bağlantıyı aç ve giriş yap.</li>
+      <li>Adres çubuğunun yanındaki yükleme simgesine ya da <strong>⋮ → Kaydet ve paylaş → Kısayol oluştur</strong>’a tıkla.</li>
+      <li>“Pencere olarak aç” seçeneğini işaretlersen site kendi penceresinde açılır.</li>
+    </ol></details>
+    <p class="muted small" style="margin-top:14px">Sevgilinin de aynı adımları kendi telefonunda yapması gerekir. Müzik, tarayıcı gibi uygulama ilk dokunuştan sonra çalmaya başlar.</p>
+  </section>
+</main>
+</div>
+
+<!-- Mini oynatıcı -->
+<div class="player" id="player" hidden>
+  <div class="player-in">
+    <button class="icon-btn" type="button" id="pPrev" aria-label="Önceki şarkı"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+    <button class="icon-btn main" type="button" id="pToggle" aria-label="Çal"></button>
+    <button class="icon-btn" type="button" id="pNext" aria-label="Sonraki şarkı"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l11 7L4 19z"/></svg></button>
+    <div class="now-title" id="pTitle"></div>
+  </div>
+</div>
+
+<button class="switch" id="btnTheme" type="button" role="switch" aria-checked="false" aria-label="Karanlık mod">
+  <svg class="sw-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+  <svg class="sw-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></svg>
+  <span class="knob"></span>
+</button>
+
+<dialog id="lbDlg" style="padding:0;width:min(96vw,900px);background:#000"><img id="lbImg" alt="" style="display:block;width:100%;max-height:88vh;object-fit:contain"></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<!-- Ayarlar -->
+<dialog id="settingsDlg">
+  <h2>Ayarlar</h2>
+  <form class="form" id="setForm" autocomplete="off" novalidate>
+    <div class="form" id="seAdmin" style="margin-top:0">
+    <div class="row2">
+      <div class="field"><label for="seA">İlk isim</label><input type="text" id="seA" maxlength="24"></div>
+      <div class="field"><label for="seB">İkinci isim</label><input type="text" id="seB" maxlength="24"></div>
+    </div>
+    <div class="field"><label for="seDate">Birlikte olduğunuz ilk gün</label><input type="date" id="seDate"></div>
+    <div class="field"><label for="sePl">Playlist bağlantısı (isteğe bağlı)</label><input type="url" id="sePl" placeholder="https://open.spotify.com/…"></div>
+    <div class="field" id="partnerRow" hidden>
+      <label for="seMailB">Sevgilinin e-postası</label>
+      <input type="email" id="seMailB" inputmode="email" autocomplete="off">
+      <p class="muted small" id="partnerState"></p>
+      <div class="actions"><button class="btn" type="button" id="partnerReset">Şifresini sıfırla</button></div>
+    </div>
+    <div class="field">
+      <label for="seWelcome">Giriş fotoğrafları</label>
+      <input type="file" id="seWelcome" accept="image/jpeg,image/png,image/webp" multiple>
+      <p class="muted small" id="welcomeStatus" role="status">Giriş ekranında sırayla gösterilir. En fazla 10 tane.</p>
+      <div class="thumbs" id="welcomeList"></div>
+    </div>
+    </div>
+    <div class="field"><label for="sePw">Yeni şifre (en az 6 karakter, değiştirmek istemezsen boş bırak)</label><input type="password" id="sePw" autocomplete="new-password"></div>
+    <p class="err" id="seErr" role="alert"></p>
+    <div class="actions"><button class="btn primary" type="submit">Kaydet</button><button class="btn" type="button" id="seCancel">Kapat</button></div>
+  </form>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  (function () { var h = document.getElementById('hearts'), t = ''; for (var i = 0; i < 110; i++) t += '<i style="--d:-' + ((i % 16) * 0.3).toFixed(2) + 's">\u2665</i>'; h.innerHTML = t; })();
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  var store = function (kind) {
+    return {
+      get: function (k) { try { return window[kind].getItem(k); } catch (e) { return null; } },
+      set: function (k, v) { try { window[kind].setItem(k, v); } catch (e) {} },
+      del: function (k) { try { window[kind].removeItem(k); } catch (e) {} }
+    };
+  };
+  var LS = store('localStorage'), SS = store('sessionStorage');
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  var ID_RE = /^[0-9a-f]{32}$/;
+
+  var state = {
+    db: null, assets: null, settings: undefined,
+    memories: [], todos: [], tracks: [],
+    viewer: { isOwner: false, name: '', email: '', avatar: '', key: 'guest' },
+    me: 'A', email: '', accounts: undefined, session: null, welcome: [],
+    tab: LS.get('posta:tab') || 'bugun',
+    notes: [], seen: {}, notesReady: false,
+    cur: -1, curId: null, playing: false, wantPlay: false, errRun: 0
+  };
+
+  /* ---------- Tarih hesapları ---------- */
+  function parseYMD(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || '');
+    return m ? { y: +m[1], m: +m[2], d: +m[3] } : null;
+  }
+  function utcDay(o) { return Date.UTC(o.y, o.m - 1, o.d) / 86400000; }
+  function todayYMD() { var n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() }; }
+  function daysBetween(a, b) { return Math.round(utcDay(b) - utcDay(a)); }
+  function ymdString(o) { return o.y + '-' + String(o.m).padStart(2, '0') + '-' + String(o.d).padStart(2, '0'); }
+  function ymdDiff(a, b) {
+    var y = b.y - a.y, m = b.m - a.m, d = b.d - a.d;
+    if (d < 0) { m--; d += new Date(b.y, b.m - 1, 0).getDate(); }
+    if (m < 0) { y--; m += 12; }
+    return { y: y, m: m, d: d };
+  }
+  function fmtLong(o) {
+    return new Date(Date.UTC(o.y, o.m - 1, o.d)).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
+  function fmtStamp(s) {
+    var o = parseYMD(s); if (!o) return '';
+    return new Date(Date.UTC(o.y, o.m - 1, o.d)).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).toLocaleUpperCase('tr-TR');
+  }
+  function addDays(o, n) {
+    var d = new Date(Date.UTC(o.y, o.m - 1, o.d + n));
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+  }
+
+  /* ---------- Yardımcılar ---------- */
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 4200);
+  }
+  function fail(err) {
+    var c = err && err.code, m = 'Kaydedilemedi. Birazdan tekrar dene.';
+    if (c === 'permission_denied') m = 'Bu işlem için izin yok. Çıkış yapıp tekrar giriş yapmayı dene.';
+    else if (c === 'quota_exceeded') m = 'Depolama dolu. Eski bir şeyi silip tekrar dene.';
+    else if (c === 'resource_exhausted' || c === 'rate_limited') m = 'Çok hızlı gittik. Birkaç saniye sonra tekrar dene.';
+    toast(m);
+  }
+  function armed(btn) {
+    if (btn.dataset.armed) return true;
+    var old = btn.textContent;
+    btn.dataset.armed = '1'; btn.textContent = 'Emin misin?'; btn.classList.add('danger');
+    setTimeout(function () {
+      if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = old; btn.classList.remove('danger'); }
+    }, 3500);
+    return false;
+  }
+  function sha(text) {
+    try {
+      var b = new TextEncoder().encode(text);
+      return crypto.subtle.digest('SHA-256', b).then(function (d) {
+        return Array.prototype.map.call(new Uint8Array(d), function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+      });
+    } catch (e) {
+      var h = 5381; for (var i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+      return Promise.resolve('f' + h.toString(16));
+    }
+  }
+  function newSalt() {
+    try { var a = new Uint8Array(12); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return x.toString(16).padStart(2, '0'); }).join(''); }
+    catch (e) { return String(Math.random()).slice(2) + String(Date.now()); }
+  }
+  var EMAIL_RE = /^[a-z0-9._~+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+  function normEmail(s) { return String(s || '').trim().toLowerCase(); }
+  function okEmail(s) { return s.length <= 120 && EMAIL_RE.test(s); }
+  function isAdmin() { return state.me === 'A'; }
+  function keyOfSlot(slot) {
+    var m = state.members;
+    return m && m !== 'denied' ? (slot === 'A' ? m.admin : m.partner) || '' : '';
+  }
+  function names() { var s = state.settings || {}; return { A: s.nameA || 'Biz', B: s.nameB || '' }; }
+  function authorOf(by) { var n = names(); return by === 'A' ? n.A : by === 'B' ? n.B : ''; }
+  function inMain() { return !$('#v-main').hidden; }
+  function validUrl(u) {
+    try { var x = new URL(u); return x.protocol === 'https:' || x.protocol === 'http:' ? x.href : ''; } catch (e) { return ''; }
+  }
+
+  /* ---------- Görünümler ---------- */
+  var VIEWS = ['loading', 'nodb', 'setup', 'gate', 'login', 'main'];
+  function show(name) {
+    VIEWS.forEach(function (v) { $('#v-' + v).hidden = v !== name; });
+    document.body.classList.toggle('on-login', name === 'login');
+    if (name !== 'main') $('#player').hidden = true;
+  }
+  var gateAction = null;
+  function gate(o) {
+    $('#gateTitle').textContent = o.title;
+    $('#gateText').textContent = o.text;
+    var v = state.viewer, acct = [v.name, v.email].filter(Boolean).join(' · ');
+    $('#gateAcct').textContent = acct ? 'Giriş yapılan hesap: ' + acct : '';
+    var b = $('#gateBtn'); gateAction = o.fn || null;
+    b.hidden = !o.label; if (o.label) b.textContent = o.label;
+    show('gate'); audio.pause();
+  }
+  var gestureArmed = false;
+  function armGesture() {
+    if (gestureArmed) return;
+    gestureArmed = true;
+    var h = function (e) {
+      document.removeEventListener('pointerdown', h, true);
+      if (e.target.closest && e.target.closest('#player, [data-act="play-track"]')) return;
+      startMusic();
+    };
+    document.addEventListener('pointerdown', h, true);
+  }
+  function enter() { show('main'); renderAll(); armGesture(); }
+  function route() {
+    if (!state.db || !state.auth) { show('nodb'); return; }
+    var st = state.settings, u = state.authUser;
+    if (st === undefined || u === undefined) { show('loading'); return; }
+    if (!u) {
+      if (st === null) { prepSetup(true); show('setup'); }
+      else { if ($('#v-login').hidden) prepLogin(); renderLoginArt(); show('login'); audio.pause(); }
+      return;
+    }
+    var m = state.members;
+    if (m === undefined) { show('loading'); return; }
+    if (m === 'denied') {
+      gate({ title: 'Bu hesaba izin verilmedi', text: 'Bu e-posta sitenin iki hesabından biri değil. Doğru e-postayla giriş yapmayı dene.', label: 'Çıkış yap', fn: doLogout });
+      return;
+    }
+    if (m === null || st === null) { prepSetup(st === null); show('setup'); return; }
+    state.me = u.email === m.admin ? 'A' : 'B'; state.email = u.email;
+    if (!state.started && state.startData) { state.started = true; state.startData(); }
+    enter();
+    if (state.recovery) { state.recovery = false; setTimeout(function () { $('#btnSettings').click(); $('#seErr').textContent = 'Yeni şifreni yaz ve Kaydet’e bas.'; $('#sePw').focus(); }, 300); }
+  }
+  function prepSetup(full) {
+    state.setupFull = full;
+    $('#suBasics').hidden = !full;
+    var u = state.authUser;
+    $('#suTitle').textContent = full ? 'Önce birkaç şeyi kuralım' : 'Yönetici hesabını tamamla';
+    $('#suIntro').textContent = 'Siteyi sen kuruyorsun, senin hesabın yönetici hesabı olur. Sevgilin giriş ekranında “İlk kez giriyorum” diyerek kendi şifresini belirler.' + (u ? ' Şu an ' + u.email + ' ile giriş yaptın.' : '');
+    if (u) { $('#suMail').value = u.email; }
+    $('#suDate').max = ymdString(todayYMD());
+  }
+  var firstTime = false;
+  function setFirst(on) {
+    firstTime = on;
+    $('#lgRepeatRow').hidden = !on;
+    $('#lgFirst').textContent = on ? 'Zaten hesabım var' : 'İlk kez giriyorum';
+    $('#lgSubmit').textContent = on ? 'Hesabı oluştur' : 'Giriş yap';
+    $('#lgIntro').textContent = on ? 'E-postanı yaz ve kendi şifreni belirle. Yalnızca sitedeki iki e-posta kabul edilir.' : 'Kendi e-postanla gir.';
+    $('#lgErr').textContent = '';
+  }
+  function prepLogin() {
+    $('#lgMail').value = LS.get('posta:lastmail') || '';
+    $('#lgPw').value = ''; $('#lgPw2').value = '';
+    setFirst(false);
+  }
+  function authErr(ex) {
+    var c = ex && ex.code || '';
+    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-login-credentials') return 'E-posta ya da şifre yanlış. İlk kez giriyorsan “İlk kez giriyorum”a dokun.';
+    if (c === 'auth/email-already-in-use') return 'Bu e-posta için hesap var. Şifrenle gir ya da “Şifremi unuttum”a dokun.';
+    if (c === 'auth/weak-password') return 'Şifre en az 6 karakter olmalı.';
+    if (c === 'auth/invalid-email') return 'E-postanı doğru yaz.';
+    if (c === 'auth/too-many-requests') return 'Çok fazla deneme oldu. Biraz bekleyip tekrar dene.';
+    if (c === 'auth/network-request-failed') return 'İnternet bağlantısını kontrol et.';
+    if (c === 'auth/operation-not-allowed') return 'Supabase’de e-posta girişi kapalı.';
+    if (c === 'auth/email-not-confirmed') return 'E-posta onayı açık. Supabase’de “Confirm email” ayarını kapat.';
+    if (c === 'auth/requires-recent-login') return 'Güvenlik için çıkış yapıp yeniden giriş yapman gerekiyor.';
+    return 'İşlem yapılamadı' + (c ? ' (' + c + ')' : '') + '.';
+  }
+  function doLogout() {
+    try { audio.pause(); } catch (e) {}
+    state.auth.signOut().then(function () { location.reload(); }, function () { location.reload(); });
+  }
+
+  /* ---------- Çizim ---------- */
+  function renderAll() {
+    renderHeader(); renderHero(); renderHome(); renderMemories(); renderTodos(); renderNotes(); renderTracks(); renderPlayer(); renderExtras(); applyTab();
+    syncAssetsUI();
+  }
+  function renderHeader() {
+    var n = names();
+    $('#brand').textContent = n.B ? n.A + ' & ' + n.B : n.A;
+    var w = $('#who'); w.textContent = '';
+    var l1 = document.createElement('span');
+    l1.textContent = authorOf(state.me) + (isAdmin() ? ' · Yönetici' : '');
+    l1.style.color = 'var(--ink)'; l1.style.fontWeight = '700';
+    w.appendChild(l1);
+    if (state.email) { var l2 = document.createElement('span'); l2.textContent = state.email; w.appendChild(l2); }
+  }
+  function postmarkSVG(n, s, uid) {
+    var up = function (x) { return String(x || '').toLocaleUpperCase('tr-TR').slice(0, 12); };
+    var ring = 'SEVGİYLE · ' + up(s.nameA) + ' & ' + up(s.nameB) + ' · BİRLİKTE · ';
+    var fs = 12, circ = 2 * Math.PI * 86;
+    var spacing = Math.max(0.5, (circ * 0.98 - ring.length * fs * 0.6) / ring.length);
+    var digits = String(n).length;
+    var nfs = digits <= 2 ? 78 : digits === 3 ? 64 : digits === 4 ? 50 : 40;
+    var base = 96 + nfs * 0.36;
+    return '<svg class="pm" viewBox="0 0 220 220" role="img" aria-label="' + n + ' gün">' +
+      '<defs><path id="pmArc' + (uid || '') + '" d="M110,110 m-86,0 a86,86 0 1,1 172,0 a86,86 0 1,1 -172,0"/></defs>' +
+      '<circle cx="110" cy="110" r="104" fill="none" stroke="currentColor" stroke-width="2.5"/>' +
+      '<circle cx="110" cy="110" r="68" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+      '<text fill="currentColor" font-size="' + fs + '" letter-spacing="' + spacing.toFixed(2) + '" style="font-family:var(--mono);font-weight:500"><textPath href="#pmArc' + (uid || '') + '">' + esc(ring) + '</textPath></text>' +
+      '<text x="110" y="' + base.toFixed(1) + '" text-anchor="middle" font-size="' + nfs + '" style="font-family:var(--display);font-weight:800;fill:var(--ink);font-variant-numeric:tabular-nums">' + n + '</text>' +
+      '<text x="110" y="' + (base + 26).toFixed(1) + '" text-anchor="middle" font-size="13" letter-spacing="4" fill="currentColor" style="font-family:var(--mono);font-weight:500">GÜN</text>' +
+      '</svg>';
+  }
+  function renderHero() {
+    var s = state.settings, start = parseYMD(s.start), t = todayYMD();
+    if (!start) return;
+    var n = Math.max(0, daysBetween(start, t));
+    $('#postmark').innerHTML = postmarkSVG(n, s);
+    $('#heroLine').textContent = s.nameA + ' ve ' + s.nameB + ' birlikte.';
+    $('#heroSince').textContent = fmtLong(start) + ' tarihinden beri.';
+    var df = daysBetween(start, t) >= 0 ? ymdDiff(start, t) : { y: 0, m: 0, d: 0 };
+    var parts = [];
+    if (df.y) parts.push(df.y + ' yıl');
+    if (df.m) parts.push(df.m + ' ay');
+    if (df.d) parts.push(df.d + ' gün');
+    $('#heroSplit').innerHTML = parts.length ? parts.map(function (p) { return '<span>' + p + '</span>'; }).join('') : '<span>İlk gün bugün</span>';
+
+    if (n > 0 && n % 100 === 0) {
+      $('#stHundred').textContent = 'Bugün ' + n + '. günümüz';
+      $('#stHundredSub').textContent = 'Kutlama zamanı.';
+    } else {
+      var next = (Math.floor(n / 100) + 1) * 100;
+      $('#stHundred').textContent = (next - n) + ' gün sonra ' + next + '. gün';
+      $('#stHundredSub').textContent = fmtLong(addDays(start, next));
+    }
+    var cand = { y: t.y, m: start.m, d: start.d };
+    if (daysBetween(t, cand) < 0) cand.y++;
+    var yrs = cand.y - start.y;
+    if (yrs === 0) { cand.y++; yrs = 1; }
+    var k = daysBetween(t, cand);
+    if (k === 0) { $('#stAnniv').textContent = 'Bugün ' + yrs + '. yıldönümümüz'; $('#stAnnivSub').textContent = 'Mutlu yıldönümü.'; }
+    else { $('#stAnniv').textContent = k + ' gün sonra ' + yrs + '. yıl'; $('#stAnnivSub').textContent = fmtLong(cand); }
+  }
+  function sortedMemories() {
+    return state.memories.slice().sort(function (a, b) {
+      return (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0);
+    });
+  }
+  function openTodos() { return state.todos.filter(function (x) { return !x.done; }).sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); }); }
+  function doneTodos() { return state.todos.filter(function (x) { return x.done; }).sort(function (a, b) { return (b.doneAt || 0) - (a.doneAt || 0); }); }
+
+  function renderHome() {
+    renderHomeShow();
+    var t = todayYMD(), mems = sortedMemories();
+    var otd = mems.filter(function (m) { var o = parseYMD(m.date); return o && o.m === t.m && o.d === t.d && o.y < t.y; });
+    var box = $('#otd');
+    if (otd.length) {
+      box.hidden = false;
+      box.innerHTML = '<p class="k">Yıllar önce bugün</p>' + otd.map(function (m) {
+        var o = parseYMD(m.date);
+        return '<p><strong>' + (t.y - o.y) + ' yıl önce:</strong> ' + esc(m.title) + '</p>';
+      }).join('');
+    } else { box.hidden = true; box.innerHTML = ''; }
+
+    var hm = $('#homeMem');
+    if (mems.length) {
+      var m = mems[0];
+      hm.innerHTML = '<p class="k">Son anı</p><p class="v">' + esc(m.title) + '</p><p class="sub">' + esc(fmtLong(parseYMD(m.date) || t)) + '</p>' +
+        (m.body ? '<p style="margin-top:8px;overflow-wrap:anywhere">' + esc(m.body.length > 140 ? m.body.slice(0, 140) + '…' : m.body) + '</p>' : '') +
+        '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="anilar">Tüm anılar (' + mems.length + ')</button></p>';
+    } else {
+      hm.innerHTML = '<p class="k">Anılar</p><p class="v">Henüz anı yok</p><p class="sub">İlk anıyı eklemek için Anılar bölümüne geç.</p>' +
+        '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="anilar">Anı ekle</button></p>';
+    }
+    var ht = $('#homeTodos'), open = openTodos();
+    if (open.length) {
+      ht.innerHTML = '<p class="k">Sırada</p>' +
+        '<ul style="margin:8px 0 0;padding-left:18px">' + open.slice(0, 3).map(function (x) { return '<li style="overflow-wrap:anywhere">' + esc(x.text) + '</li>'; }).join('') + '</ul>' +
+        '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="liste">Tüm liste (' + open.length + ' madde)</button></p>';
+    } else {
+      ht.innerHTML = '<p class="k">Sırada</p><p class="v">' + (state.todos.length ? 'Hepsini yaptık' : 'Liste boş') + '</p><p class="sub">' + (state.todos.length ? 'Yeni bir şey ekleyebilirsiniz.' : 'Birlikte yapmak istediğiniz ilk şeyi yazın.') + '</p>' +
+        '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="liste">Listeye git</button></p>';
+    }
+  }
+
+  function renderMemories() {
+    renderPending();
+    var list = sortedMemories();
+    $('#memCount').textContent = list.length ? list.length + ' anı' : '';
+    var box = $('#memList');
+    if (!list.length) {
+      box.innerHTML = '<div class="empty"><p class="t">İlk anıyı ekle</p><p>Tanıştığınız gün, ilk buluşma, birlikte gittiğiniz bir yer olabilir. Başlık yeter; not ve fotoğraf isteğe bağlı.</p></div>';
+      return;
+    }
+    box.innerHTML = '<div class="mem-grid">' + list.map(function (m) {
+      var photo = ID_RE.test(m.photoId || '') ? '<img data-ph="1" src="' + blobUrl(m.photoId) + '" alt="" loading="lazy">' : '';
+      var who = authorOf(m.by);
+      return '<article class="mem">' + photo + '<div class="mem-body">' +
+        '<p class="stamp">' + esc(fmtStamp(m.date)) + (m.place ? ' · ' + esc(m.place) : '') + '</p>' +
+        '<h3>' + esc(m.title) + '</h3>' +
+        (m.body ? '<p class="mem-text">' + esc(m.body) + '</p>' : '') +
+        (ID_RE.test(m.pendingPhotoId || '') && !isAdmin() ? '<p class="pending-note">Fotoğraf yönetici onayını bekliyor.</p>' : '') +
+        '<div class="mem-foot"><span>' + (who ? esc(who) : '') + '</span><button class="link-btn" type="button" data-act="del-mem" data-id="' + esc(m.id) + '">Sil</button></div>' +
+        '</div></article>';
+    }).join('') + '</div>';
+    $$('img[data-ph]', box).forEach(function (im) { im.addEventListener('error', function () { im.classList.add('broken'); }); });
+  }
+
+  function todoRow(x, done) {
+    var who = authorOf(x.by);
+    var meta = done && x.doneAt ? 'Yapıldı: ' + new Date(x.doneAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' }) : (who ? 'Ekleyen: ' + who : '');
+    return '<div class="todo' + (done ? ' done' : '') + '">' +
+      '<input type="checkbox" data-act="toggle-todo" data-id="' + esc(x.id) + '"' + (done ? ' checked' : '') + ' aria-label="' + esc(x.text) + '">' +
+      '<div class="t">' + esc(x.text) + (meta ? '<p class="meta">' + esc(meta) + '</p>' : '') + '</div>' +
+      '<div class="todo-actions">' + (done ? '<button class="link-btn" type="button" data-act="todo-mem" data-id="' + esc(x.id) + '">Anıya çevir</button>' : '') +
+      '<button class="link-btn" type="button" data-act="del-todo" data-id="' + esc(x.id) + '">Sil</button></div></div>';
+  }
+  function renderTodos() {
+    var open = openTodos(), done = doneTodos(), total = open.length + done.length;
+    $('#todoCount').textContent = total ? done.length + ' / ' + total + ' yapıldı' : '';
+    $('#todoBar').hidden = !total;
+    $('#todoBarFill').style.width = total ? Math.round(done.length / total * 100) + '%' : '0%';
+    var html = '';
+    if (!total) {
+      html = '<div class="empty" style="margin-top:18px"><p class="t">Liste boş</p><p>Gidilecek bir yer, izlenecek bir film ya da denenecek bir yemek yaz. Yaptıkça işaretleyin.</p></div>';
+    } else {
+      html += open.length ? open.map(function (x) { return todoRow(x, false); }).join('') : '<p class="muted" style="margin-top:16px">Hepsini yaptınız. Yeni bir madde ekleyebilirsiniz.</p>';
+      if (done.length) html += '<p class="sub-head">Yaptıklarımız</p>' + done.map(function (x) { return todoRow(x, true); }).join('');
+    }
+    $('#todoList').innerHTML = html;
+  }
+
+  /* ---------- Fotoğraf onayı ---------- */
+  function pendingPhotos() {
+    return isAdmin() ? state.memories.filter(function (m) { return ID_RE.test(m.pendingPhotoId || ''); }) : [];
+  }
+  function renderDot() {
+    $('#menuDot').hidden = !(pendingPhotos().length || unreadNotes().length);
+  }
+  function renderPending() {
+    var box = $('#pendPanel'), list = pendingPhotos(), b = $('#memBadge');
+    b.hidden = !list.length; b.textContent = list.length;
+    renderDot();
+    if (!list.length) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = '<div class="panel pend"><p class="k">Onay bekleyen fotoğraflar (' + list.length + ')</p>' + list.map(function (m) {
+      return '<div class="pend-row"><img src="' + blobUrl(m.pendingPhotoId) + '" alt="" loading="lazy">' +
+        '<div class="pend-info"><p class="v" style="overflow-wrap:anywhere">' + esc(m.title) + '</p>' +
+        '<p class="sub">' + esc(authorOf(m.by)) + ' ekledi</p>' +
+        '<div class="actions" style="margin-top:8px"><button class="btn primary" type="button" data-act="approve-photo" data-id="' + esc(m.id) + '">Onayla</button>' +
+        '<button class="link-btn" type="button" data-act="reject-photo" data-id="' + esc(m.id) + '">Reddet</button></div></div></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- Bildirimler ---------- */
+  var NOTE_TIME = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+  function noteTime(ts) {
+    var d = Date.now() - ts;
+    if (d < 60000) return 'az önce';
+    if (d < 3600000) return Math.floor(d / 60000) + ' dk önce';
+    if (d < 86400000) return Math.floor(d / 3600000) + ' sa önce';
+    return new Date(ts).toLocaleString('tr-TR', NOTE_TIME);
+  }
+  function unreadNotes() {
+    var at = state.seen[state.me] || 0;
+    return state.notes.filter(function (n) { return n.from !== state.me && (n.createdAt || 0) > at; });
+  }
+  var seenBusy = false;
+  function markSeen() {
+    if (seenBusy || state.tab !== 'bildirim' || !inMain() || document.hidden) return;
+    var un = unreadNotes(); if (!un.length) return;
+    var at = Math.max.apply(null, un.map(function (n) { return n.createdAt || 0; }));
+    seenBusy = true;
+    state.db.doc('seen/' + state.me).set({ at: at }).catch(function () {}).then(function () { seenBusy = false; });
+  }
+  function renderNotes() {
+    var un = unreadNotes(), other = state.me === 'A' ? 'B' : 'A', otherAt = state.seen[other] || 0, myAt = state.seen[state.me] || 0;
+    var badge = $('#noteBadge'); badge.hidden = !un.length; badge.textContent = un.length;
+    renderDot();
+    $('#noteCount').textContent = state.notes.length ? state.notes.length + ' not' : '';
+    var al = $('#noteAlert');
+    if (un.length) {
+      al.hidden = false;
+      al.innerHTML = '<p class="k">Yeni bildirim (' + un.length + ')</p><p class="v" style="overflow-wrap:anywhere">' + esc(authorOf(un[0].from)) + ': ' + esc(un[0].text) + '</p>' +
+        '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="bildirim">Bildirimlere git</button></p>';
+    } else { al.hidden = true; al.innerHTML = ''; }
+    var box = $('#noteList');
+    if (!state.notes.length) {
+      box.innerHTML = '<div class="empty" style="margin-top:20px"><p class="t">Henüz bildirim yok</p><p>İlk notu sen gönder. Yukarıdaki hazır notlardan birine dokunman yeter.</p></div>';
+      return;
+    }
+    box.innerHTML = '<div class="notes">' + state.notes.map(function (n) {
+      var mine = n.from === state.me, isNew = !mine && (n.createdAt || 0) > myAt;
+      var foot = mine ? ((n.createdAt || 0) <= otherAt ? 'Görüldü' : 'Gönderildi') : (isNew ? 'Yeni' : '');
+      return '<article class="note' + (mine ? ' mine' : '') + '"><p class="note-meta">' + esc(authorOf(n.from)) + ' · ' + esc(noteTime(n.createdAt || 0)) + '</p>' +
+        '<p class="note-text">' + esc(n.text) + '</p>' +
+        '<div class="note-foot"><span' + (isNew ? ' class="new"' : '') + '>' + foot + '</span>' +
+        (mine ? '<button class="link-btn" type="button" data-act="del-note" data-id="' + esc(n.id) + '">Sil</button>' : '') + '</div></article>';
+    }).join('') + '</div>';
+    markSeen();
+  }
+  function sendNote(text) {
+    text = String(text || '').trim();
+    if (!text) return Promise.resolve();
+    return state.db.collection('notes').add({ text: text.slice(0, 240), from: state.me, createdAt: Date.now() })
+      .then(function () { toast('Gönderildi.'); }).catch(fail);
+  }
+
+  function renderTracks() {
+    var n = state.tracks.length;
+    $('#trackCount').textContent = n ? n + ' şarkı' : '';
+    var box = $('#trackList');
+    if (!n) {
+      box.innerHTML = '<div class="empty" style="margin-top:16px"><p class="t">Henüz şarkı yok</p><p>Sevdiğiniz şarkıları m4a ya da mp3 olarak yükleyin. Giriş yaptığınızda sırayla çalarlar.</p></div>';
+      box.style.borderTop = '0';
+    } else {
+      box.style.borderTop = '';
+      box.innerHTML = state.tracks.map(function (t, i) {
+        var now = t.id === state.curId;
+        return '<div class="track' + (now ? ' now' : '') + '">' +
+          '<button class="play" type="button" data-act="play-track" data-i="' + i + '"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="name">' + esc(t.title) + '</span></button>' +
+          '<button class="link-btn" type="button" data-act="del-track" data-id="' + esc(t.id) + '">Sil</button></div>';
+      }).join('');
+    }
+    var link = state.settings && validUrl(state.settings.playlistUrl || '');
+    $('#plWrap').hidden = !link;
+    if (link) $('#plLink').href = link;
+  }
+
+  var ICON_PLAY = '<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>';
+  var ICON_PAUSE = '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
+  function renderPlayer() {
+    var p = $('#player');
+    p.hidden = !(inMain() && state.tracks.length);
+    if (p.hidden) return;
+    var t = state.tracks[state.cur];
+    $('#pToggle').innerHTML = state.playing ? ICON_PAUSE : ICON_PLAY;
+    $('#pToggle').setAttribute('aria-label', state.playing ? 'Durdur' : 'Çal');
+    $('#pTitle').innerHTML = t ? '<small>' + (state.playing ? 'Çalıyor' : 'Duraklatıldı') + '</small>' + esc(t.title) : '<small>Playlist</small>' + 'Çalmak için ▶ düğmesine bas';
+  }
+
+  function applyTab() {
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'takvim', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
+    $$('.nav-item[data-tab]').forEach(function (b) {
+      if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+  }
+  function setTab(tab) { state.tab = tab; LS.set('posta:tab', tab); applyTab(); closeMenu(); window.scrollTo(0, 0); markSeen(); }
+  function syncAssetsUI() {
+    var can = !!state.assets;
+    $('#memPhotoField').hidden = !can;
+    $('#memPhotoLbl').textContent = isAdmin() ? 'Fotoğraf (isteğe bağlı)' : 'Fotoğraf (yönetici onayından sonra görünür)';
+    $('#trackUpload').hidden = !can;
+    $('#trackNoPerm').hidden = can;
+  }
+
+  /* ---------- Müzik oynatıcı ---------- */
+  var audio = new Audio(); audio.preload = 'none';
+  audio.addEventListener('play', function () { state.playing = true; renderPlayer(); });
+  audio.addEventListener('pause', function () { state.playing = false; renderPlayer(); });
+  audio.addEventListener('playing', function () { state.errRun = 0; });
+  audio.addEventListener('ended', function () { state.errRun = 0; step(1, true); });
+  audio.addEventListener('error', function () {
+    if (!state.curId) return;
+    state.errRun++;
+    if (state.errRun < state.tracks.length) step(1, true); else toast('Şarkılar çalınamadı.');
+  });
+  function setTrack(i, auto) {
+    var t = state.tracks[i];
+    if (!t || !ID_RE.test(t.assetId || '')) return;
+    state.cur = i; state.curId = t.id;
+    audio.src = blobUrl(t.assetId);
+    if (auto) { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
+    renderPlayer(); renderTracks();
+  }
+  function step(d, auto) {
+    var n = state.tracks.length; if (!n) return;
+    setTrack(((state.cur < 0 ? 0 : state.cur) + d + n) % n, auto);
+  }
+  function togglePlay() {
+    if (!state.tracks.length) return;
+    if (state.cur < 0) { LS.set('posta:music', 'on'); setTrack(0, true); return; }
+    if (audio.paused) { LS.set('posta:music', 'on'); var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
+    else { LS.set('posta:music', 'off'); audio.pause(); }
+  }
+  function startMusic() {
+    if (LS.get('posta:music') === 'off') return;
+    if (!state.tracks.length) { state.wantPlay = true; return; }
+    if (state.cur < 0) setTrack(0, true); else { var p = audio.play(); if (p && p.catch) p.catch(function () {}); }
+  }
+
+  function testPlayable(url) {
+    return new Promise(function (res) {
+      var a = new Audio(), done = false, timer;
+      function fin(v) { if (done) return; done = true; clearTimeout(timer); a.removeAttribute('src'); try { a.load(); } catch (e) {} res(v); }
+      timer = setTimeout(function () { fin(false); }, 10000);
+      a.preload = 'metadata';
+      a.onloadedmetadata = function () { fin(true); };
+      a.onerror = function () { fin(false); };
+      a.src = url;
+    });
+  }
+  function cleanTitle(name) { return name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim().slice(0, 80) || 'Şarkı'; }
+  var TYPE_BY_EXT = { m4a: 'video/mp4', mp4: 'video/mp4', mp3: 'video/mp4', aac: 'video/mp4', webm: 'video/webm' };
+  async function addTracks(files) {
+    if (!state.assets) return;
+    var status = $('#trackStatus'), ok = 0;
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      status.textContent = 'Yükleniyor ' + (i + 1) + '/' + files.length + ': ' + f.name;
+      var ext = (f.name.split('.').pop() || '').toLowerCase(), type = TYPE_BY_EXT[ext];
+      if (!type) { toast(f.name + ': bu biçim desteklenmiyor. m4a, mp3, mp4 ya da webm seç.'); continue; }
+      if (f.size > 20 * 1024 * 1024) { toast(f.name + ' 20 MB sınırını aşıyor.'); continue; }
+      var up;
+      try { up = await state.assets.upload(f, { type: type }); }
+      catch (err) { toast(f.name + ' yüklenemedi.'); continue; }
+      var good = await testPlayable(blobUrl(up.id));
+      if (!good) { await sleep(1500); good = await testPlayable(blobUrl(up.id)); }
+      if (!good) {
+        try { await state.assets.delete(up.id); } catch (e) {}
+        toast(f.name + ' tarayıcıda çalmadı. Dosyayı m4a olarak dene.');
+        continue;
+      }
+      try {
+        await state.db.collection('tracks').add({ title: cleanTitle(f.name), assetId: up.id, by: state.me, createdAt: Date.now() + i });
+        ok++;
+      } catch (err) { fail(err); }
+    }
+    status.textContent = ok ? ok + ' şarkı eklendi.' : '';
+    $('#trackFile').value = '';
+  }
+
+  /* ---------- Yükleme izni ve hata metinleri ---------- */
+  function getAssets() {
+    if (state.assets) return Promise.resolve(state.assets);
+    try {
+      return window.__host.use('assets').then(function (a) { state.assets = a; return a; }, function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+  function uploadErrText(ex) {
+    var c = ex && ex.code;
+    if (c === 'too_large') return 'Dosya çok büyük.';
+    if (c === 'unsupported_type') return 'Bu biçim desteklenmiyor. JPG ya da PNG seç.';
+    if (c === 'quota_or_state') return 'Depolama dolu.';
+    if (c === 'rate_limited') return 'Çok hızlı gittik, biraz bekle.';
+    if (c === 'not_granted' || c === 'capability_disabled' || c === 'capability_removed') return 'Bu hesapta yükleme izni yok.';
+    return 'Yüklenemedi' + (c ? ' (' + c + ')' : '') + '.';
+  }
+
+  /* ---------- Fotoğraf küçültme ---------- */
+  async function shrink(file) {
+    try {
+      var bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      var s = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      var w = Math.round(bmp.width * s), h = Math.round(bmp.height * s);
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+      var blob = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.86); });
+      return blob && blob.size < file.size ? blob : file;
+    } catch (e) { return file; }
+  }
+
+  /* ---------- Olaylar ---------- */
+  document.addEventListener('click', function (e) {
+    var tabBtn = e.target.closest('.nav-item[data-tab]');
+    if (tabBtn) { setTab(tabBtn.dataset.tab); return; }
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+    if (act === 'goto') { setTab(b.dataset.tab); return; }
+    if (act === 'del-mem') {
+      if (!armed(b)) return;
+      var m = state.memories.filter(function (x) { return x.id === id; })[0];
+      state.db.doc('memories/' + id).delete().then(function () {
+        if (m && ID_RE.test(m.photoId || '') && state.assets) state.assets.delete(m.photoId).catch(function () {});
+        if (m && ID_RE.test(m.pendingPhotoId || '') && state.assets) state.assets.delete(m.pendingPhotoId).catch(function () {});
+        toast('Anı silindi.');
+      }).catch(fail);
+    } else if (act === 'del-todo') {
+      if (!armed(b)) return;
+      state.db.doc('todos/' + id).delete().catch(fail);
+    } else if (act === 'todo-mem') {
+      var td = state.todos.filter(function (x) { return x.id === id; })[0]; if (!td) return;
+      setTab('anilar');
+      $('#memForm').hidden = false;
+      $('#memTitle').value = td.text.slice(0, 80);
+      $('#memDate').value = ymdString(todayYMD());
+      $('#memTitle').focus();
+    } else if (act === 'approve-photo') {
+      var pm = state.memories.filter(function (x) { return x.id === id; })[0];
+      if (!pm || !isAdmin() || !ID_RE.test(pm.pendingPhotoId || '')) return;
+      b.disabled = true;
+      state.db.doc('memories/' + id).update({ photoId: pm.pendingPhotoId, pendingPhotoId: '' })
+        .then(function () { toast('Fotoğraf onaylandı.'); })
+        .catch(function (err) { b.disabled = false; fail(err); });
+    } else if (act === 'reject-photo') {
+      if (!armed(b)) return;
+      var pr = state.memories.filter(function (x) { return x.id === id; })[0];
+      if (!pr || !isAdmin()) return;
+      state.db.doc('memories/' + id).update({ pendingPhotoId: '' }).then(function () {
+        if (state.assets && ID_RE.test(pr.pendingPhotoId || '')) state.assets.delete(pr.pendingPhotoId).catch(function () {});
+        toast('Fotoğraf reddedildi.');
+      }).catch(fail);
+    } else if (act === 'del-welcome') {
+      if (!armed(b)) return;
+      var wl = state.welcome.filter(function (x) { return x.id === id; })[0];
+      state.db.doc('welcome/' + id).delete().then(function () {
+        if (wl && ID_RE.test(wl.assetId || '') && state.assets) state.assets.delete(wl.assetId).catch(function () {});
+      }).catch(fail);
+    } else if (act === 'quick') {
+      sendNote(b.dataset.text);
+    } else if (act === 'del-note') {
+      if (!armed(b)) return;
+      state.db.doc('notes/' + id).delete().catch(fail);
+    } else if (act === 'play-track') {
+      var i = +b.dataset.i;
+      if (state.tracks[i] && state.tracks[i].id === state.curId) togglePlay();
+      else { LS.set('posta:music', 'on'); setTrack(i, true); }
+    } else if (act === 'del-track') {
+      if (!armed(b)) return;
+      var tr = state.tracks.filter(function (x) { return x.id === id; })[0];
+      state.db.doc('tracks/' + id).delete().then(function () {
+        if (tr && ID_RE.test(tr.assetId || '') && state.assets) state.assets.delete(tr.assetId).catch(function () {});
+      }).catch(fail);
+    }
+  });
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (el.matches && el.matches('[data-act="toggle-todo"]')) {
+      var td = state.todos.filter(function (x) { return x.id === el.dataset.id; })[0]; if (!td) return;
+      state.db.doc('todos/' + td.id).update({ done: !td.done, doneAt: td.done ? null : Date.now() }).catch(function (err) { fail(err); renderTodos(); });
+    }
+  });
+
+  $('#pToggle').addEventListener('click', togglePlay);
+  $('#pPrev').addEventListener('click', function () { step(-1, true); LS.set('posta:music', 'on'); });
+  $('#pNext').addEventListener('click', function () { step(1, true); LS.set('posta:music', 'on'); });
+
+  $('#gateBtn').addEventListener('click', function () { if (gateAction) gateAction(); });
+
+  // Kurulum (yönetici hesabı)
+  $('#setupForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var full = !!state.setupFull, err = $('#suErr'); err.textContent = '';
+    var a = $('#suA').value.trim(), b = $('#suB').value.trim(), d = $('#suDate').value;
+    var mail = normEmail($('#suMail').value), mailB = normEmail($('#suMailB').value);
+    var p1 = $('#suPw').value, p2 = $('#suPw2').value, signed = !!state.authUser;
+    if (full) {
+      var start = parseYMD(d);
+      if (!a || !b) { err.textContent = 'İki ismi de yaz.'; return; }
+      if (!start || daysBetween(start, todayYMD()) < 0) { err.textContent = 'Geçmişte bir tarih seç.'; return; }
+    }
+    if (!okEmail(mail)) { err.textContent = 'Kendi e-postanı doğru yaz.'; return; }
+    if (!okEmail(mailB)) { err.textContent = 'Sevgilinin e-postasını doğru yaz.'; return; }
+    if (mail === mailB) { err.textContent = 'İki e-posta farklı olmalı.'; return; }
+    if (!signed) {
+      if (p1.length < 6) { err.textContent = 'Şifre en az 6 karakter olmalı.'; return; }
+      if (p1 !== p2) { err.textContent = 'İki şifre aynı değil.'; return; }
+    } else if (state.authUser.email !== mail) { err.textContent = 'Şu an başka bir e-postayla giriş yapılmış.'; return; }
+    var btn = $('#suBtn'); btn.disabled = true;
+    try {
+      if (!signed) {
+        try { await state.auth.signUp(mail, p1, true); }
+        catch (ex) { if (ex && ex.code === 'auth/email-already-in-use') await state.auth.signIn(mail, p1, true); else throw ex; }
+      }
+      LS.set('posta:lastmail', mail);
+      await state.db.doc('app/members').set({ admin: mail, partner: mailB, createdAt: Date.now() });
+      if (full) await state.db.doc('app/settings').set({ nameA: a, nameB: b, start: d, playlistUrl: '', createdAt: Date.now() });
+    } catch (ex) {
+      err.textContent = ex && ex.code === 'permission_denied' ? 'Kurulum zaten yapılmış olabilir. Sayfayı yenileyip giriş yap.' : authErr(ex);
+    }
+    btn.disabled = false;
+  });
+
+  // Giriş
+  $('#lgFirst').addEventListener('click', function () { setFirst(!firstTime); if (firstTime) $('#lgPw2').value = ''; });
+  $('#loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var err = $('#lgErr'); err.textContent = '';
+    var key = normEmail($('#lgMail').value), pw = $('#lgPw').value;
+    if (!okEmail(key)) { err.textContent = 'E-postanı doğru yaz.'; return; }
+    if (pw.length < 6) { err.textContent = 'Şifre en az 6 karakter olmalı.'; return; }
+    var remember = $('#lgRemember').checked, btn = $('#lgSubmit'); btn.disabled = true;
+    try {
+      if (firstTime) {
+        if (pw !== $('#lgPw2').value) { err.textContent = 'İki şifre aynı değil.'; btn.disabled = false; return; }
+        await state.auth.signUp(key, pw, remember);
+      } else await state.auth.signIn(key, pw, remember);
+      LS.set('posta:lastmail', key); startMusic();
+    } catch (ex) { err.textContent = authErr(ex); }
+    btn.disabled = false;
+  });
+  $('#lgForgot').addEventListener('click', function () {
+    var err = $('#lgErr'); err.textContent = '';
+    var key = normEmail($('#lgMail').value);
+    if (!okEmail(key)) { err.textContent = 'Önce e-postanı yaz.'; return; }
+    state.auth.reset(key).then(function () { err.style.color = 'var(--ink)'; err.textContent = 'Şifre sıfırlama e-postası gönderildi. Gelen kutunu ve istenmeyenleri kontrol et.'; })
+      .catch(function (ex) { err.style.color = ''; err.textContent = authErr(ex); });
+  });
+  $('#btnLogout').addEventListener('click', function () { closeMenu(); doLogout(); });
+  $('#btnSettings').addEventListener('click', closeMenu);
+
+  $('#partnerReset').addEventListener('click', function (e) {
+    var b = e.currentTarget, bKey = keyOfSlot('B');
+    if (!bKey || !armed(b)) return;
+    state.auth.reset(bKey).then(function () { toast('Sıfırlama e-postası ' + bKey + ' adresine gönderildi.'); closeDlg(); }).catch(function (ex) { $('#seErr').textContent = authErr(ex); });
+  });
+
+  // Anı ekleme
+  $('#btnMemToggle').addEventListener('click', function () {
+    var f = $('#memForm'); f.hidden = !f.hidden;
+    if (!f.hidden) { if (!$('#memDate').value) $('#memDate').value = ymdString(todayYMD()); $('#memDate').max = ymdString(todayYMD()); $('#memTitle').focus(); }
+  });
+  $('#memCancel').addEventListener('click', function () { $('#memForm').hidden = true; });
+  $('#memForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var title = $('#memTitle').value.trim(), date = $('#memDate').value, body = $('#memBody').value.trim(), place = $('#memPlace').value.trim().slice(0, 60);
+    var err = $('#memErr'); err.textContent = '';
+    if (!title) { err.textContent = 'Anıya bir başlık yaz.'; return; }
+    if (!parseYMD(date)) { err.textContent = 'Bir tarih seç.'; return; }
+    var btn = $('#memBtn'); btn.disabled = true; btn.textContent = 'Kaydediliyor…';
+    var photoId = null, pendingId = '', file = $('#memPhoto').files[0];
+    try {
+      if (file) {
+        var assets = await getAssets();
+        if (!assets) throw { code: 'not_granted' };
+        var blob = await shrink(file);
+        var up = await assets.upload(blob);
+        if (isAdmin()) photoId = up.id; else pendingId = up.id;
+      }
+    } catch (ex) {
+      err.textContent = 'Fotoğraf eklenemedi. ' + uploadErrText(ex);
+      btn.disabled = false; btn.textContent = 'Kaydet'; return;
+    }
+    try {
+      await state.db.collection('memories').add({ title: title, date: date, body: body, place: place, photoId: photoId, pendingPhotoId: pendingId, by: state.me, createdAt: Date.now() });
+      $('#memForm').reset(); $('#memForm').hidden = true;
+      toast(pendingId ? 'Anı eklendi. Fotoğraf yönetici onayından sonra görünür.' : 'Anı eklendi.');
+    } catch (ex) { fail(ex); }
+    btn.disabled = false; btn.textContent = 'Kaydet';
+  });
+
+  // Liste
+  $('#todoForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var inp = $('#todoText'), text = inp.value.trim(); if (!text) return;
+    inp.value = '';
+    state.db.collection('todos').add({ text: text, done: false, doneAt: null, by: state.me, createdAt: Date.now() }).catch(function (err) { inp.value = text; fail(err); });
+  });
+
+  // Bildirim gönderme
+  $('#noteForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var inp = $('#noteText'), text = inp.value.trim(); if (!text) return;
+    inp.value = '';
+    sendNote(text);
+  });
+
+  // Müzik yükleme
+  $('#trackFile').addEventListener('change', function (e) { if (e.target.files.length) addTracks(Array.prototype.slice.call(e.target.files)); });
+
+  // Ayarlar
+  var dlg = $('#settingsDlg');
+  $('#btnSettings').addEventListener('click', function () {
+    var s = state.settings; if (!s) return;
+    $('#seA').value = s.nameA || ''; $('#seB').value = s.nameB || ''; $('#seDate').value = s.start || '';
+    $('#seDate').max = ymdString(todayYMD()); $('#sePl').value = s.playlistUrl || ''; $('#seErr').textContent = '';
+    var admin = isAdmin(), bKey = keyOfSlot('B');
+    $('#seAdmin').hidden = !admin;
+    $('#sePw').value = '';
+    $('#seMailB').value = bKey;
+    $('#partnerState').textContent = bKey ? 'Sevgilin giriş ekranında “İlk kez giriyorum” diyerek şifresini belirler. Şifresini unutursa aşağıdan sıfırlama e-postası gönderebilirsin.' : '';
+    $('#partnerReset').hidden = !bKey;
+    $('#partnerReset').textContent = 'Şifre sıfırlama e-postası gönder';
+    $('#seWelcome').disabled = false;
+    $('#welcomeStatus').textContent = 'Giriş ekranında sırayla gösterilir. En fazla 10 tane.';
+    renderWelcomeAdmin();
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  });
+  function closeDlg() { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
+  $('#seCancel').addEventListener('click', closeDlg);
+  $('#setForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var err = $('#seErr'); err.textContent = '';
+    var admin = isAdmin(), pw = $('#sePw').value.trim(), patch = null, newB = '', bKey = keyOfSlot('B');
+    if (pw && pw.length < 6) { err.textContent = 'Şifre en az 6 karakter olmalı.'; return; }
+    if (admin) {
+      var a = $('#seA').value.trim(), b = $('#seB').value.trim(), d = $('#seDate').value, pl = $('#sePl').value.trim();
+      var start = parseYMD(d);
+      if (!a || !b) { err.textContent = 'İki ismi de yaz.'; return; }
+      if (!start || daysBetween(start, todayYMD()) < 0) { err.textContent = 'Geçmişte bir tarih seç.'; return; }
+      if (pl && !validUrl(pl)) { err.textContent = 'Playlist bağlantısı http ya da https ile başlamalı.'; return; }
+      patch = { nameA: a, nameB: b, start: d, playlistUrl: pl ? validUrl(pl) : '' };
+      newB = normEmail($('#seMailB').value);
+      if (newB && newB !== bKey && (!okEmail(newB) || newB === state.email)) { err.textContent = 'Sevgilinin e-postasını doğru yaz.'; return; }
+    }
+    try {
+      if (patch) await state.db.doc('app/settings').update(patch);
+      if (admin && newB && newB !== bKey) await state.db.doc('app/members').update({ partner: newB });
+      if (pw) await state.auth.updatePw(pw);
+      closeDlg(); toast('Ayarlar kaydedildi.');
+    } catch (ex) {
+      err.textContent = ex && ex.code && String(ex.code).indexOf('auth/') === 0 ? authErr(ex) : 'Kaydedilemedi. Birazdan tekrar dene.';
+    }
+  });
+
+  /* ---------- Açık / koyu mod ---------- */
+  function themeNow() {
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t === 'dark' || t === 'light') return t;
+    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paintSwitch() {
+    var dark = themeNow() === 'dark', b = $('#btnTheme');
+    b.setAttribute('aria-checked', dark ? 'true' : 'false');
+    b.setAttribute('aria-label', dark ? 'Karanlık mod açık' : 'Karanlık mod kapalı');
+  }
+  $('#btnTheme').addEventListener('click', function () {
+    var next = themeNow() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    LS.set('posta:theme', next); paintSwitch();
+  });
+  var savedTheme = LS.get('posta:theme');
+  if (savedTheme === 'dark' || savedTheme === 'light') document.documentElement.setAttribute('data-theme', savedTheme);
+  paintSwitch();
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintSwitch); } catch (e) {}
+
+  /* ---------- Soldaki menü ---------- */
+  function openMenu() {
+    $('#drawer').classList.add('open'); $('#scrim').hidden = false;
+    $('#btnMenu').setAttribute('aria-expanded', 'true');
+    var f = $('#drawer .nav-item'); if (f) f.focus();
+  }
+  function closeMenu() {
+    $('#drawer').classList.remove('open'); $('#scrim').hidden = true;
+    $('#btnMenu').setAttribute('aria-expanded', 'false');
+  }
+  $('#btnMenu').addEventListener('click', function () { if ($('#drawer').classList.contains('open')) closeMenu(); else openMenu(); });
+  $('#scrim').addEventListener('click', closeMenu);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+
+  /* ---------- Giriş fotoğrafları ---------- */
+  function welcomeList() { return state.welcome.filter(function (w) { return ID_RE.test(w.assetId || ''); }); }
+  function renderShow() {
+    var box = $('#loginShow'), list = welcomeList();
+    if (!list.length) { box.hidden = true; box.innerHTML = ''; renderLoginArt(); return; }
+    box.hidden = false;
+    box.innerHTML = list.map(function (w, i) { return '<img src="' + blobUrl(w.assetId) + '" alt=""' + (i === 0 ? ' class="on"' : '') + '>'; }).join('');
+    $('#lgArt').classList.remove('has-photo');
+    $$('img', box).forEach(function (im) {
+      im.addEventListener('load', function () { $('#lgArt').classList.add('has-photo'); $('#lgMark').innerHTML = ''; });
+      im.addEventListener('error', function () {
+        im.remove();
+        if (!$$('img', box).length) { box.hidden = true; $('#lgArt').classList.remove('has-photo'); renderLoginArt(true); }
+      });
+    });
+    renderLoginArt();
+  }
+  function renderLoginArt() {
+    var s = state.settings, has = $$('#loginShow img').length > 0 && !$('#loginShow').hidden;
+    if (!has) $('#lgArt').classList.remove('has-photo');
+    else if ($$('#loginShow img').some(function (i) { return i.complete && i.naturalWidth > 0; })) $('#lgArt').classList.add('has-photo');
+    has = $('#lgArt').classList.contains('has-photo');
+    var start = s && parseYMD(s.start), n = start ? Math.max(0, daysBetween(start, todayYMD())) : null;
+    $('#lgNames').textContent = s ? s.nameA + ' & ' + s.nameB : 'Posta Kutumuz';
+    $('#lgDays').textContent = n == null ? '' : n + ' gündür birlikte';
+    $('#lgMark').innerHTML = s && n != null && !has ? postmarkSVG(n, s, '-lg') : '';
+  }
+
+  /* ---------- Ana sayfa fotoğraf gösterisi ---------- */
+  var homeKey = '';
+  function homePhotos() {
+    var out = [], seen = {};
+    welcomeList().forEach(function (w) { if (!seen[w.assetId]) { seen[w.assetId] = 1; out.push({ id: w.assetId, cap: '' }); } });
+    sortedMemories().forEach(function (m) {
+      if (ID_RE.test(m.photoId || '') && !seen[m.photoId]) { seen[m.photoId] = 1; out.push({ id: m.photoId, cap: m.title + ' · ' + fmtStamp(m.date) }); }
+    });
+    return out;
+  }
+  function renderHomeShow() {
+    var box = $('#homeShow'), list = homePhotos(), key = list.map(function (x) { return x.id; }).join();
+    if (key === homeKey) return;
+    homeKey = key;
+    if (!list.length) { box.hidden = true; return; }
+    box.hidden = false;
+    var cap = $('#homeCap'); cap.textContent = '';
+    box.innerHTML = list.map(function (x, i) {
+      return '<img src="' + blobUrl(x.id) + '" alt="" data-cap="' + esc(x.cap) + '"' + (i === 0 ? ' class="on"' : '') + '>';
+    }).join('');
+    box.appendChild(cap);
+    $$('img', box).forEach(function (im) { im.addEventListener('error', function () { var on = im.classList.contains('on'); im.remove(); var r = $$('img', box); if (!r.length) box.hidden = true; else if (on) r[0].classList.add('on'); capNow(); }); });
+    capNow();
+  }
+  function capNow() { var on = $('#homeShow img.on'); $('#homeCap').textContent = on ? on.getAttribute('data-cap') || '' : ''; }
+  function stepHome() {
+    var imgs = $$('#homeShow img'); if (imgs.length < 2) return;
+    var cur = Math.max(0, imgs.findIndex(function (i) { return i.classList.contains('on'); }));
+    imgs[cur].classList.remove('on'); imgs[(cur + 1) % imgs.length].classList.add('on'); capNow();
+  }
+  $('#homeShow').addEventListener('click', stepHome);
+  setInterval(function () {
+    var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (inMain() && state.tab === 'bugun' && !reduced) stepHome();
+  }, 5000);
+  function stepShow() {
+    var imgs = $$('#loginShow img'); if (imgs.length < 2) return;
+    var cur = Math.max(0, imgs.findIndex(function (i) { return i.classList.contains('on'); }));
+    imgs[cur].classList.remove('on'); imgs[(cur + 1) % imgs.length].classList.add('on');
+  }
+  $('#loginShow').addEventListener('click', stepShow);
+  setInterval(function () {
+    var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!$('#v-login').hidden && !reduced) stepShow();
+  }, 5000);
+  function renderWelcomeAdmin() {
+    var box = $('#welcomeList'), list = welcomeList();
+    box.innerHTML = list.map(function (w) {
+      return '<div class="thumb"><img src="' + blobUrl(w.assetId) + '" alt="" loading="lazy"><button class="link-btn" type="button" data-act="del-welcome" data-id="' + esc(w.id) + '">Sil</button></div>';
+    }).join('');
+  }
+  $('#seWelcome').addEventListener('change', async function (e) {
+    var input = e.target, files = Array.prototype.slice.call(input.files), st = $('#welcomeStatus');
+    if (!files.length) return;
+    if (!isAdmin()) { st.textContent = 'Giriş fotoğraflarını yalnızca yönetici ekler.'; input.value = ''; return; }
+    st.textContent = 'Yükleme izni kontrol ediliyor…';
+    var assets = await getAssets();
+    if (!assets) { st.textContent = 'Fotoğraf yükleme şu an kullanılamıyor. Giriş yaptığından emin ol.'; input.value = ''; return; }
+    var ok = 0, lastErr = '';
+    for (var i = 0; i < files.length; i++) {
+      if (state.welcome.length + ok >= 10) { lastErr = 'En fazla 10 giriş fotoğrafı olabilir.'; break; }
+      st.textContent = 'Yükleniyor ' + (i + 1) + '/' + files.length + '…';
+      try {
+        var blob = await shrink(files[i]);
+        var up = await assets.upload(blob);
+        await state.db.collection('welcome').add({ assetId: up.id, createdAt: Date.now() + i });
+        ok++;
+      } catch (ex) { lastErr = files[i].name + ': ' + uploadErrText(ex); }
+    }
+    st.textContent = (ok ? ok + ' fotoğraf eklendi. ' : '') + lastErr || 'Giriş ekranında sırayla gösterilir. En fazla 10 tane.';
+    input.value = '';
+  });
+
+  /* ---------- Gece yarısı yenileme ---------- */
+  function refreshDays() { if (inMain()) { renderHero(); renderHome(); } }
+  function tickMidnight() {
+    var n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 5);
+    setTimeout(function () { refreshDays(); tickMidnight(); }, next - n);
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { refreshDays(); markSeen(); } });
+  setInterval(function () { if (inMain() && state.tab === 'bildirim') renderNotes(); }, 60000);
+  tickMidnight();
+
+  /* ================= Yeni bölümler ================= */
+  var QUESTIONS = [
+    'Bugün seni en çok ne güldürdü?', 'Beraber gitmek istediğin ilk yer neresi?', 'Bende en sevdiğin küçük bir alışkanlık ne?',
+    'Birlikte yaptığımız en güzel şey sence neydi?', 'Bu hafta kendine nasıl bir iyilik yapmak istersin?', 'Beni ilk gördüğünde ne düşündün?',
+    'Bir günlüğüne her şeyi bırakıp ne yapardık?', 'Çocukken en sevdiğin yemek neydi?', 'Bu aralar seni en çok ne yoruyor?',
+    'Birlikte öğrenmek istediğin bir şey var mı?', 'Hayalindeki hafta sonu nasıl geçer?', 'Bana söylemediğin ama söylemek istediğin güzel bir şey var mı?',
+    'En sevdiğin ortak anımız hangisi?', 'Şu an hangi şarkıyı dinlemek istersin?', 'Beraber yapmak istediğin bir macera nedir?',
+    'Bugün kendinle gurur duyduğun bir şey var mı?', 'Beni en çok hangi anda özlüyorsun?', 'Birlikte pişirmek istediğin yemek ne?',
+    'On yıl sonra nerede yaşıyoruz?', 'Sana en iyi gelen şey nedir?', 'Beraber izlediğimiz en güzel film hangisiydi?',
+    'Bana bir şey sorabilsen ne sorardın?', 'Bugün sana en çok ne iyi geldi?', 'Birbirimize hangi sözü vermek isterdin?',
+    'Hangi anımızı tekrar yaşamak isterdin?', 'Beni üç kelimeyle anlat.', 'Bu yıl birlikte yapmak istediğin bir şey ne?',
+    'Seni en çok ne rahatlatır?', 'Hayatında bir şeyi değiştirebilsen ne olurdu?', 'Bu hafta bana yapmak istediğin küçük bir sürpriz var mı?',
+    'En sevdiğin mevsim ve nedeni ne?', 'Bugün aklına gelen ilk güzel şey ne?', 'Beni neyle tanımlarsın: deniz mi, dağ mı, şehir mi?',
+    'Sana nasıl daha iyi destek olabilirim?', 'Son zamanlarda en çok neye minnettarsın?'
+  ];
+  var MOODS = ['😍', '🥰', '😊', '😌', '😐', '😴', '😢', '😡', '🤒'];
+  var X = { events: [], wishes: [], letters: [], answers: [], moods: [], items: [] };
+  var other = function () { return state.me === 'A' ? 'B' : 'A'; };
+  var todayKey = function () { return ymdString(todayYMD()); };
+  var delBtn = function (col, id) { return '<button class="link-btn" type="button" data-act="del-doc" data-col="' + col + '" data-id="' + esc(id) + '">Sil</button>'; };
+  var byTime = function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); };
+  function dayLabel(n) { return n === 0 ? 'Bugün' : n === 1 ? 'Yarın' : n > 0 ? n + ' gün kaldı' : (-n) + ' gün önce'; }
+  function evNext(e) {
+    var d = parseYMD(e.date); if (!d) return null;
+    var t = todayYMD();
+    if (e.yearly) {
+      var c = { y: t.y, m: d.m, d: d.d };
+      if (daysBetween(t, c) < 0) c.y++;
+      return { date: c, days: daysBetween(t, c), years: c.y - d.y };
+    }
+    return { date: d, days: daysBetween(t, d), years: 0 };
+  }
+  function upcomingEvents() {
+    return X.events.map(function (e) { return Object.assign({ nx: evNext(e) }, e); })
+      .filter(function (e) { return e.nx && e.nx.days >= 0; })
+      .sort(function (a, b) { return a.nx.days - b.nx.days; });
+  }
+  function emptyBox(t, p) { return '<div class="empty" style="margin-top:18px"><p class="t">' + t + '</p><p>' + p + '</p></div>'; }
+
+  function renderCalendar() {
+    var up = upcomingEvents(), past = X.events.map(function (e) { return Object.assign({ nx: evNext(e) }, e); })
+      .filter(function (e) { return e.nx && e.nx.days < 0; }).sort(function (a, b) { return b.nx.days - a.nx.days; });
+    var row = function (e, old) {
+      var title = esc(e.title) + (e.yearly && e.nx.years > 0 ? ' · ' + e.nx.years + '. yıl' : '');
+      return '<div class="todo"><div class="t"><strong>' + title + '</strong><div class="meta">' + esc(fmtLong(e.nx.date)) + (e.time ? ' · ' + esc(e.time) : '') + (e.yearly ? ' · her yıl' : '') + (authorOf(e.by) ? ' · ' + esc(authorOf(e.by)) : '') + '</div></div>' +
+        '<span class="stamp" style="white-space:nowrap">' + dayLabel(e.nx.days) + '</span>' + '<div class="todo-actions">' + delBtn('events', e.id) + '</div></div>';
+    };
+    var h = up.length ? up.map(function (e) { return row(e); }).join('') : (X.events.length ? '<p class="muted" style="margin-top:16px">Yaklaşan bir şey yok.</p>' : emptyBox('Takvim boş', 'Doğum günü, yıldönümü, buluşma ya da randevu ekle. Yıllık işaretlersen her yıl tekrar eder.'));
+    if (past.length) h += '<p class="sub-head">Geçmiş</p>' + past.slice(0, 8).map(function (e) { return row(e, true); }).join('');
+    $('#calList').innerHTML = h;
+  }
+  function renderUpcomingHome() {
+    var up = upcomingEvents().filter(function (e) { return e.nx.days <= 60; }).slice(0, 3), b = $('#upBox');
+    if (!up.length) { b.hidden = true; return; }
+    b.hidden = false;
+    b.innerHTML = '<p class="k">Yaklaşanlar</p>' + up.map(function (e) {
+      return '<p style="margin-top:6px;overflow-wrap:anywhere"><strong>' + esc(e.title) + '</strong> · <span class="stamp">' + dayLabel(e.nx.days) + '</span></p>';
+    }).join('') + '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="takvim">Takvime git</button></p>';
+  }
+
+  function renderWishes() {
+    var open = X.wishes.filter(function (w) { return !w.done; }).sort(byTime), done = X.wishes.filter(function (w) { return w.done; }).sort(byTime).reverse();
+    var row = function (w, isDone) {
+      var mine = w.by === state.me;
+      return '<div class="todo' + (isDone ? ' done' : '') + '"><div class="t">' + esc(w.text) + '<div class="meta">' + esc(authorOf(w.by)) + (isDone ? ' · listeye eklendi' : mine ? ' · onay bekliyor' : '') + '</div></div>' +
+        '<div class="todo-actions">' + (!isDone && !mine ? '<button class="link-btn" type="button" data-act="wish-ok" data-id="' + esc(w.id) + '">Listeye ekle</button>' : '') + delBtn('wishes', w.id) + '</div></div>';
+    };
+    var h = open.length ? open.map(function (w) { return row(w, false); }).join('') : (X.wishes.length ? '<p class="muted" style="margin-top:16px">Bekleyen dilek yok.</p>' : emptyBox('Dilek kutusu boş', 'Yapmak ya da gitmek istediğin bir şeyi yaz. Diğeri onaylayınca ortak listeye geçer.'));
+    if (done.length) h += '<p class="sub-head">Listeye eklenenler</p>' + done.slice(0, 10).map(function (w) { return row(w, true); }).join('');
+    $('#wishList').innerHTML = h;
+  }
+
+  function renderLetters() {
+    var t = todayYMD(), mine = X.letters.filter(function (l) { return l.to === state.me; }).sort(byTime).reverse(),
+        sent = X.letters.filter(function (l) { return l.by === state.me; }).sort(byTime).reverse();
+    var h = '<p class="sub-head">Bana gelenler</p>';
+    h += mine.length ? mine.map(function (l) {
+      var od = parseYMD(l.openAt), left = od ? daysBetween(t, od) : 0;
+      if (left > 0) return '<div class="panel lock" style="margin-top:10px"><p class="stamp">KİLİTLİ</p><p><strong>' + esc(authorOf(l.by)) + '</strong> sana bir mektup bıraktı.</p><p class="muted small">' + esc(fmtLong(od)) + ' tarihinde açılır (' + left + ' gün sonra).</p></div>';
+      return '<div class="panel" style="margin-top:10px"><p class="stamp">' + esc(authorOf(l.by)).toLocaleUpperCase('tr-TR') + ' · ' + esc(fmtStamp(l.openAt)) + '</p><p class="mem-text">' + esc(l.text) + '</p></div>';
+    }).join('') : '<p class="muted">Henüz sana yazılmış mektup yok.</p>';
+    h += '<p class="sub-head">Yazdıklarım</p>';
+    h += sent.length ? sent.map(function (l) {
+      var od = parseYMD(l.openAt), left = od ? daysBetween(t, od) : 0;
+      return '<div class="panel" style="margin-top:10px"><p class="stamp">' + (left > 0 ? 'AÇILIŞ: ' + esc(fmtStamp(l.openAt)) : 'AÇILDI') + '</p><p class="mem-text">' + esc(l.text) + '</p><p style="margin-top:6px">' + delBtn('letters', l.id) + '</p></div>';
+    }).join('') : '<p class="muted">Yazdığın mektup yok.</p>';
+    $('#letList').innerHTML = h;
+  }
+
+  function renderGifts() {
+    var gifts = X.items.filter(function (i) { return i.kind === 'gift' && i.by === state.me; }).sort(byTime),
+        shop = X.items.filter(function (i) { return i.kind === 'shop'; }).sort(byTime);
+    $('#giftList').innerHTML = gifts.length ? gifts.map(function (i) {
+      return '<div class="todo"><div class="t">' + esc(i.text) + '</div><div class="todo-actions">' + delBtn('items', i.id) + '</div></div>';
+    }).join('') : '<p class="muted" style="margin-top:12px">Henüz fikir yok.</p>';
+    $('#shopList').innerHTML = shop.length ? shop.map(function (i) {
+      return '<div class="todo' + (i.done ? ' done' : '') + '"><input type="checkbox" data-act="item-toggle" data-id="' + esc(i.id) + '"' + (i.done ? ' checked' : '') + ' aria-label="' + esc(i.text) + '"><div class="t">' + esc(i.text) + '<div class="meta">' + esc(authorOf(i.by)) + '</div></div><div class="todo-actions">' + delBtn('items', i.id) + '</div></div>';
+    }).join('') : '<p class="muted" style="margin-top:12px">Alışveriş listesi boş.</p>';
+  }
+
+  function renderDaily() {
+    var tk = todayKey(), q = QUESTIONS[Math.floor(utcDay(todayYMD())) % QUESTIONS.length];
+    var ans = {}; X.answers.forEach(function (a) { if (a.date === tk) ans[a.slot] = a; });
+    var mood = {}; X.moods.forEach(function (m) { if (m.date === tk) mood[m.slot] = m.emoji; });
+    var n = names(), o = other();
+    var h = '<div class="panel"><p class="k">Bugün nasılsın?</p><div class="mood-row">' +
+      MOODS.map(function (e) { return '<button type="button" class="mood-btn' + (mood[state.me] === e ? ' on' : '') + '" data-act="mood" data-e="' + e + '" aria-label="' + e + '">' + e + '</button>'; }).join('') + '</div>' +
+      '<p class="sub" style="margin-top:8px">' + esc(authorOf(state.me)) + ': ' + (mood[state.me] || '—') + ' · ' + esc(authorOf(o)) + ': ' + (mood[o] || '—') + '</p></div>';
+    h += '<div class="panel" style="margin-top:12px"><p class="k">Günün sorusu</p><p class="v" style="font-size:20px">' + esc(q) + '</p>';
+    if (!ans[state.me]) {
+      h += '<form id="ansForm" class="form" style="margin-top:12px"><textarea id="ansText" maxlength="600" aria-label="Cevabın" placeholder="Cevabını yaz…" style="min-height:70px"></textarea><div class="actions"><button class="btn primary" type="submit">Cevapla</button></div></form>' +
+        (ans[o] ? '<p class="sub" style="margin-top:8px">' + esc(authorOf(o)) + ' cevapladı. Sen de yazınca görürsün.</p>' : '');
+    } else if (!ans[o]) {
+      h += '<p class="sub" style="margin-top:8px">Cevabın kaydedildi. ' + esc(authorOf(o)) + ' da yazınca ikisi birlikte görünür.</p>';
+    } else {
+      h += ['A', 'B'].map(function (s) { return '<div class="ans"><p class="stamp">' + esc(authorOf(s)).toLocaleUpperCase('tr-TR') + '</p><p class="mem-text">' + esc(ans[s].text) + '</p></div>'; }).join('');
+    }
+    h += '</div>';
+    var box = $('#dailyBox');
+    var ta = $('#ansText'), keep = ta ? ta.value : '', focused = ta && document.activeElement === ta;
+    if (focused) return; // yazarken yeniden çizme
+    box.innerHTML = h;
+  }
+
+  var ozetYear = null;
+  function renderOzet() {
+    var cur = todayYMD().y, years = {}; years[cur] = 1;
+    var yr = function (s) { var o = parseYMD(s); return o ? o.y : 0; };
+    X.answers.forEach(function (a) { years[yr(a.date)] = 1; });
+    state.memories.forEach(function (m) { years[yr(m.date)] = 1; });
+    var list = Object.keys(years).map(Number).filter(Boolean).sort(function (a, b) { return b - a; });
+    if (!ozetYear || list.indexOf(ozetYear) < 0) ozetYear = cur;
+    var sel = $('#ozetYear'); sel.innerHTML = list.map(function (y) { return '<option value="' + y + '"' + (y === ozetYear ? ' selected' : '') + '>' + y + '</option>'; }).join('');
+    var Y = ozetYear, inY = function (ms) { return ms && new Date(ms).getFullYear() === Y; };
+    var s = state.settings, start = parseYMD(s.start), t = todayYMD(), days = 0;
+    if (start) {
+      var first = daysBetween({ y: Y, m: 1, d: 1 }, start) > 0 ? start : { y: Y, m: 1, d: 1 };
+      var last = Y >= t.y ? t : { y: Y, m: 12, d: 31 };
+      if (daysBetween(first, last) >= 0) days = daysBetween(first, last) + (first === start ? 0 : 1);
+    }
+    var mems = state.memories.filter(function (m) { return yr(m.date) === Y; });
+    var both = {}; X.answers.forEach(function (a) { if (yr(a.date) === Y) both[a.date] = (both[a.date] || 0) + 1; });
+    var bothDays = Object.keys(both).filter(function (k) { return both[k] >= 2; }).length;
+    var places = {}; mems.forEach(function (m) { if (m.place) places[m.place.toLocaleLowerCase('tr-TR')] = 1; });
+    var stats = [
+      [days, 'gün birlikte'], [mems.length, 'yeni anı'], [state.todos.filter(function (x) { return x.done && inY(x.doneAt); }).length, 'yapılan madde'],
+      [state.notes.filter(function (x) { return inY(x.createdAt); }).length, 'gönderilen not'], [bothDays, 'gün soruya ikiniz de cevap verdiniz'],
+      [X.letters.filter(function (l) { return inY(l.createdAt); }).length, 'mektup'], [Object.keys(places).length, 'farklı yer']
+    ];
+    $('#ozetGrid').innerHTML = stats.map(function (x) { return '<div class="panel"><p class="v" style="font-size:34px">' + x[0] + '</p><p class="sub">' + x[1] + '</p></div>'; }).join('');
+    var top = mems.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); })[0];
+    $('#ozetFirst').innerHTML = top ? '<p class="k">Yılın ilk anısı</p><p class="v">' + esc(top.title) + '</p><p class="sub">' + esc(fmtLong(parseYMD(top.date))) + '</p>' : '';
+  }
+
+  function renderExtras() {
+    renderExtras2(); renderCalendar(); renderUpcomingHome(); renderWishes(); renderLetters(); renderGifts(); renderDaily(); renderOzet();
+  }
+  function subX(name, key) {
+    state.db.collection(name).onSnapshot(function (snap) {
+      X[key] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (inMain()) renderExtras();
+    }, function () {});
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+    if (act === 'del-doc') {
+      if (!armed(b)) return;
+      state.db.doc(b.dataset.col + '/' + id).delete().catch(fail);
+    } else if (act === 'wish-ok') {
+      var w = X.wishes.filter(function (x) { return x.id === id; })[0]; if (!w) return;
+      state.db.collection('todos').add({ text: w.text, done: false, doneAt: null, by: w.by, createdAt: Date.now() })
+        .then(function () { return state.db.doc('wishes/' + id).update({ done: true, doneAt: Date.now() }); })
+        .then(function () { toast('Listeye eklendi.'); sendNote('Dileğini listeye ekledim: ' + w.text.slice(0, 120)); }).catch(fail);
+    } else if (act === 'item-toggle') {
+      var it = X.items.filter(function (x) { return x.id === id; })[0];
+      if (it) state.db.doc('items/' + id).update({ done: !it.done }).catch(fail);
+    } else if (act === 'mood') {
+      state.db.doc('moods/' + todayKey() + '_' + state.me).set({ date: todayKey(), slot: state.me, emoji: b.dataset.e, at: Date.now() }).catch(fail);
+    } else if (act === 'rand-mem') {
+      var all = sortedMemories(); if (!all.length) { toast('Henüz anı yok.'); return; }
+      var m = all[Math.floor(Math.random() * all.length)], box = $('#randBox');
+      box.hidden = false;
+      box.innerHTML = '<p class="k">Rastgele bir anımız</p>' + (ID_RE.test(m.photoId || '') ? '<img src="' + blobUrl(m.photoId) + '" alt="" style="width:100%;max-width:420px;aspect-ratio:4/3;object-fit:cover;border-radius:8px;margin-top:8px">' : '') +
+        '<p class="stamp" style="margin-top:8px">' + esc(fmtStamp(m.date)) + (m.place ? ' · ' + esc(m.place) : '') + '</p><p class="v">' + esc(m.title) + '</p>' + (m.body ? '<p class="mem-text">' + esc(m.body) + '</p>' : '');
+    }
+  });
+  document.addEventListener('submit', function (e) {
+    var f = e.target, id = f.id;
+    var add = function (col, data) { return state.db.collection(col).add(Object.assign({ by: state.me, createdAt: Date.now() }, data)).catch(fail); };
+    var v = function (s) { return $(s).value.trim(); };
+    if (id === 'ansForm') {
+      e.preventDefault(); var t = v('#ansText'); if (!t) return;
+      state.db.doc('answers/' + todayKey() + '_' + state.me).set({ date: todayKey(), slot: state.me, text: t, at: Date.now() }).then(function () { sendNote('Günün sorusunu cevapladım.'); }).catch(fail);
+    } else if (id === 'calForm') {
+      e.preventDefault(); var ti = v('#calTitle'), d = $('#calDate').value; var er = $('#calErr'); er.textContent = '';
+      if (!ti) { er.textContent = 'Bir başlık yaz.'; return; }
+      if (!parseYMD(d)) { er.textContent = 'Bir tarih seç.'; return; }
+      add('events', { title: ti.slice(0, 80), date: d, time: $('#calTime').value || '', yearly: $('#calYearly').checked }).then(function () { f.reset(); toast('Takvime eklendi.'); });
+    } else if (id === 'wishForm') {
+      e.preventDefault(); var w = v('#wishText'); if (!w) return;
+      add('wishes', { text: w.slice(0, 140), done: false }).then(function () { f.reset(); sendNote('Dilek kutusuna yeni bir şey yazdım: ' + w.slice(0, 100)); });
+    } else if (id === 'letForm') {
+      e.preventDefault(); var tx = v('#letText'), od = $('#letDate').value, er2 = $('#letErr'); er2.textContent = '';
+      if (!tx) { er2.textContent = 'Mektubu yaz.'; return; }
+      if (!parseYMD(od) || daysBetween(todayYMD(), parseYMD(od)) < 0) { er2.textContent = 'Açılış tarihi bugün ya da sonrası olmalı.'; return; }
+      add('letters', { text: tx.slice(0, 3000), to: other(), openAt: od }).then(function () {
+        f.reset(); toast('Mektup bırakıldı.');
+        sendNote('Sana bir mektup bıraktım. ' + fmtLong(parseYMD(od)) + ' tarihinde açılır.');
+      });
+    } else if (id === 'giftForm') {
+      e.preventDefault(); var g = v('#giftText'); if (!g) return;
+      add('items', { kind: 'gift', text: g.slice(0, 120) }).then(function () { f.reset(); });
+    } else if (id === 'shopForm') {
+      e.preventDefault(); var sh = v('#shopText'); if (!sh) return;
+      add('items', { kind: 'shop', text: sh.slice(0, 120), done: false }).then(function () { f.reset(); });
+    }
+  });
+  $('#ozetYear').addEventListener('change', function (e) { ozetYear = +e.target.value; renderOzet(); });
+
+  /* ================= Dönüm noktaları, zaman çizelgesi, albümler, mesafe sayacı ================= */
+  X.albums = []; X.meet = null;
+  var MS_DAYS = (function () {
+    var s = {}, k, y;
+    for (k = 1; k <= 60; k++) s[k * 100] = 1;
+    for (y = 1; y <= 15; y++) s[y * 365] = 1;
+    return Object.keys(s).map(Number).sort(function (a, b) { return a - b; });
+  })();
+  function msLabel(d) { return d % 365 === 0 ? (d / 365) + '. yıl' : d + '. gün'; }
+  function daysTogether() { var st = state.settings && parseYMD(state.settings.start); return st ? daysBetween(st, todayYMD()) : null; }
+
+  function renderMilestone() {
+    var n = daysTogether(), b = $('#msBox');
+    if (n == null || MS_DAYS.indexOf(n) < 0) { b.hidden = true; return; }
+    b.hidden = false;
+    var hearts = '';
+    for (var i = 0; i < 14; i++) hearts += '<i style="left:' + (4 + i * 7) + '%;animation-delay:' + ((i * 0.37) % 3).toFixed(2) + 's">♥</i>';
+    b.innerHTML = '<div class="rain" aria-hidden="true">' + hearts + '</div><p class="k">Dönüm noktası</p><p class="big-title" style="margin-top:6px">Bugün ' + msLabel(n) + '!</p><p class="sub" style="margin-top:6px">' + esc(names().A) + ' ve ' + esc(names().B) + ', ' + n + ' gündür birliktesiniz. Bu günü bir anıya çevirmek ister misiniz?</p><p style="margin-top:10px"><button class="btn primary" type="button" data-act="ms-mem">Anı olarak ekle</button></p>';
+  }
+
+  var tlDesc = LS.get('posta:tl') === 'desc';
+  function renderTimeline() {
+    var s = state.settings, start = s && parseYMD(s.start), t = todayYMD(), items = [];
+    if (!start) { $('#tlList').innerHTML = ''; return; }
+    var n = daysBetween(start, t), nextDone = false;
+    items.push({ d: start, kind: 'start', title: 'İlk gün', sub: 'Hikayemiz burada başladı.' });
+    MS_DAYS.forEach(function (d) {
+      var date = addDays(start, d);
+      if (d <= n) items.push({ d: date, kind: 'ms', title: msLabel(d), sub: 'Birlikte ' + d + ' gün.' });
+      else if (!nextDone) { nextDone = true; items.push({ d: date, kind: 'next', title: msLabel(d), sub: (d - n) + ' gün sonra.' }); }
+    });
+    state.memories.forEach(function (m) {
+      var o = parseYMD(m.date); if (!o) return;
+      items.push({ d: o, kind: 'mem', id: m.id, title: m.title, sub: m.body ? (m.body.length > 160 ? m.body.slice(0, 160) + '…' : m.body) : '', place: m.place || '', photo: ID_RE.test(m.photoId || '') ? m.photoId : '' });
+    });
+    X.events.forEach(function (e) {
+      var o = parseYMD(e.date); if (!o || e.yearly || daysBetween(t, o) >= 0) return;
+      items.push({ d: o, kind: 'ev', title: e.title, sub: '' });
+    });
+    var rank = { start: 0, ms: 1, next: 1, ev: 2, mem: 3 };
+    items.sort(function (a, b) { return (utcDay(a.d) - utcDay(b.d)) || (rank[a.kind] - rank[b.kind]); });
+    if (tlDesc) items.reverse();
+    $('#tlSort').textContent = tlDesc ? 'En yeniden eskiye' : 'En eskiden yeniye';
+    var lastY = null, h = '';
+    items.forEach(function (it) {
+      if (it.d.y !== lastY) { lastY = it.d.y; h += '<p class="tl-year">' + it.d.y + '</p>'; }
+      h += '<div class="tl-item tl-' + it.kind + '"><span class="tl-dot"></span><div class="tl-body"><p class="stamp">' + esc(fmtStamp(ymdString(it.d))) + (it.place ? ' · ' + esc(it.place) : '') + (it.kind === 'next' ? ' · SIRADAKİ' : '') + '</p><p class="tl-t">' + esc(it.title) + '</p>' + (it.sub ? '<p class="sub">' + esc(it.sub) + '</p>' : '') + (it.kind === 'mem' ? '' : '') + (it.photo ? '<img class="tl-img" src="' + blobUrl(it.photo) + '" alt="" loading="lazy">' : '') + (it.kind === 'mem' ? '<p><button class="link-btn" type="button" data-act="del-mem" data-id="' + esc(it.id) + '">Sil</button></p>' : '') + '</div></div>';
+    });
+    $('#tlList').innerHTML = '<div class="tl">' + h + '</div>';
+    $$('#tlList img').forEach(function (im) { im.addEventListener('error', function () { im.remove(); }); });
+  }
+  $('#tlSort').addEventListener('click', function () { tlDesc = !tlDesc; LS.set('posta:tl', tlDesc ? 'desc' : 'asc'); renderTimeline(); });
+
+  /* ---- Mesafe sayacı ---- */
+  var meetEditing = false;
+  function renderMeet() {
+    var box = $('#meetBox'), m = X.meet, t = todayYMD();
+    if (meetEditing && box.contains(document.activeElement)) return;
+    var d = m && parseYMD(m.date), left = d ? daysBetween(t, d) : null, h = '<p class="k">Uzaktayken sayaç</p>';
+    if (meetEditing) {
+      h += '<form id="meetForm" class="form" style="margin-top:10px"><div class="row2"><div class="field"><label for="meetDate">Görüşeceğiniz gün</label><input type="date" id="meetDate" value="' + (d ? esc(m.date) : '') + '"></div><div class="field"><label for="meetNote">Not (isteğe bağlı)</label><input type="text" id="meetNote" maxlength="60" value="' + esc(m && m.note || '') + '" placeholder="Bilet alındı, İstanbul…"></div></div><p class="err" id="meetErr" role="alert"></p><div class="actions"><button class="btn primary" type="submit">Kaydet</button><button class="btn" type="button" data-act="meet-cancel">Vazgeç</button></div></form>';
+    } else if (!d) {
+      h += '<p class="v">Bir sonraki görüşme tarihi yok</p><p class="sub">Uzaktaysanız görüşeceğiniz günü ekleyin, geri sayım başlasın.</p><p style="margin-top:10px"><button class="btn" type="button" data-act="meet-edit">Tarih ekle</button></p>';
+    } else if (left > 0) {
+      h += '<p class="v" style="font-size:32px">' + left + ' gün kaldı</p><p class="sub">' + esc(fmtLong(d)) + (m.note ? ' · ' + esc(m.note) : '') + '</p><p style="margin-top:8px"><button class="link-btn" type="button" data-act="meet-edit">Değiştir</button> <button class="link-btn" type="button" data-act="meet-clear">Temizle</button></p>';
+    } else if (left === 0) {
+      h += '<p class="v" style="font-size:28px">Bugün kavuşuyorsunuz ♥</p><p class="sub">' + (m.note ? esc(m.note) : '') + '</p><p style="margin-top:8px"><button class="link-btn" type="button" data-act="meet-clear">Kaldır</button></p>';
+    } else {
+      h += '<p class="v">Kavuştunuz</p><p class="sub">' + esc(fmtLong(d)) + ' tarihinde görüştünüz.</p><p style="margin-top:8px"><button class="link-btn" type="button" data-act="meet-edit">Yeni tarih ekle</button> <button class="link-btn" type="button" data-act="meet-clear">Kaldır</button></p>';
+    }
+    box.innerHTML = h;
+  }
+
+  /* ---- Albümler ---- */
+  var albumId = null, albBusy = false;
+  function photoOk(p) { return !p.pending; }
+  function canSee(p) { return !p.pending || isAdmin() || p.by === state.me; }
+  function albById(id) { return X.albums.filter(function (a) { return a.id === id; })[0]; }
+  function renderAlbums() {
+    var box = $('#albBody'), a = albumId && albById(albumId);
+    if (albumId && !a) albumId = null;
+    $('#albNew').hidden = !!albumId;
+    if (!a) {
+      var list = X.albums.slice().sort(byTime).reverse();
+      box.innerHTML = list.length ? '<div class="alb-grid">' + list.map(function (al) {
+        var ph = (al.photos || []).filter(photoOk), cover = ph[0], pend = (al.photos || []).length - ph.length;
+        return '<button type="button" class="alb-card" data-act="alb-open" data-id="' + esc(al.id) + '">' + (cover ? '<img src="' + blobUrl(cover.id) + '" alt="" loading="lazy">' : '<span class="alb-empty">Boş</span>') + '<span class="alb-name">' + esc(al.title) + '</span><span class="alb-count">' + ph.length + ' fotoğraf' + (pend && isAdmin() ? ' · ' + pend + ' onay bekliyor' : '') + '</span></button>';
+      }).join('') + '</div>' : emptyBox('Albüm yok', 'Tatil, doğum günü ya da bir gün için albüm oluştur, fotoğrafları içine ekle.');
+      $$('img', box).forEach(function (im) { im.addEventListener('error', function () { im.style.display = 'none'; }); });
+      return;
+    }
+    var photos = (a.photos || []).filter(canSee), canDel = isAdmin() || a.by === state.me;
+    var h = '<p><button class="link-btn" type="button" data-act="alb-back">← Tüm albümler</button></p><div class="sec-head" style="margin-top:6px"><h2>' + esc(a.title) + '</h2><span class="muted small">' + photos.filter(photoOk).length + ' fotoğraf</span></div>';
+    h += '<div class="panel form" style="margin-top:0"><div class="field"><label for="albFile">Fotoğraf ekle (birden fazla seçebilirsin)</label><input type="file" id="albFile" accept="image/jpeg,image/png,image/webp,image/gif" multiple></div><p class="muted small" id="albStatus" role="status">' + (isAdmin() ? '' : 'Eklediğin fotoğraflar yönetici onayından sonra herkese görünür.') + '</p></div>';
+    h += photos.length ? '<div class="ph-grid">' + photos.map(function (p) {
+      var pend = p.pending, mine = isAdmin() || p.by === state.me;
+      var tile = pend && !isAdmin() ? '<div class="ph-wait">Onay bekliyor</div>' : '<button type="button" class="ph-btn" data-act="alb-view" data-pid="' + p.id + '"><img src="' + blobUrl(p.id) + '" alt="" loading="lazy"></button>';
+      var ctl = '';
+      if (pend && isAdmin()) ctl += '<button class="link-btn" type="button" data-act="alb-approve" data-pid="' + p.id + '">Onayla</button>';
+      if (mine) ctl += '<button class="link-btn" type="button" data-act="alb-delph" data-pid="' + p.id + '">' + (pend && isAdmin() ? 'Reddet' : 'Sil') + '</button>';
+      return '<div class="ph' + (pend ? ' pending' : '') + '">' + tile + (ctl ? '<div class="ph-ctl">' + ctl + '</div>' : '') + '</div>';
+    }).join('') + '</div>' : '<p class="muted" style="margin-top:16px">Bu albümde henüz fotoğraf yok.</p>';
+    if (canDel) h += '<p style="margin-top:20px"><button class="link-btn" type="button" data-act="alb-del">Albümü sil</button></p>';
+    var st = $('#albStatus'), keep = st && albBusy ? st.textContent : null;
+    box.innerHTML = h;
+    if (keep) $('#albStatus').textContent = keep;
+    $$('img', box).forEach(function (im) { im.addEventListener('error', function () { im.style.opacity = '.2'; }); });
+  }
+  function saveAlbumPhotos(id, photos) { return state.db.doc('albums/' + id).update({ photos: photos }); }
+  document.addEventListener('change', async function (e) {
+    var inp = e.target; if (inp.id !== 'albFile') return;
+    var a = albById(albumId), files = Array.prototype.slice.call(inp.files); if (!a || !files.length) return;
+    var st = $('#albStatus'); albBusy = true; st.textContent = 'Yükleme izni kontrol ediliyor…';
+    var assets = await getAssets();
+    if (!assets) { st.textContent = 'Bu hesapta fotoğraf yükleme izni yok.'; albBusy = false; inp.value = ''; return; }
+    var added = [], lastErr = '';
+    for (var i = 0; i < files.length; i++) {
+      var cur = albById(albumId); if ((((cur && cur.photos) || []).length + added.length) >= 60) { lastErr = 'Bir albümde en fazla 60 fotoğraf olabilir.'; break; }
+      st.textContent = 'Yükleniyor ' + (i + 1) + '/' + files.length + '…';
+      try {
+        var blob = await shrink(files[i]), up = await assets.upload(blob);
+        added.push({ id: up.id, by: state.me, pending: !isAdmin(), at: Date.now() });
+      } catch (ex) { lastErr = files[i].name + ': ' + uploadErrText(ex); }
+    }
+    try {
+      if (added.length) {
+        var latest = albById(albumId) || a;
+        await saveAlbumPhotos(albumId, (latest.photos || []).concat(added));
+      }
+    } catch (ex) { lastErr = 'Albüme kaydedilemedi.'; }
+    var msg = (added.length ? added.length + ' fotoğraf eklendi' + (isAdmin() ? '. ' : ', yönetici onayını bekliyor. ') : '') + lastErr;
+    albBusy = false; renderAlbums(); var s2 = $('#albStatus'); if (s2) s2.textContent = msg;
+  });
+
+
+  /* ---- Çizelgeden anı ekleme ---- */
+  $('#tlToggle').addEventListener('click', function () {
+    var f = $('#tlForm'); f.hidden = !f.hidden;
+    if (!f.hidden) { $('#tlDate').max = todayKey(); $('#tlTitle').focus(); }
+  });
+  $('#tlCancel').addEventListener('click', function () { $('#tlForm').hidden = true; });
+  $('#tlForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var title = $('#tlTitle').value.trim(), date = $('#tlDate').value, err = $('#tlErr'); err.textContent = '';
+    if (!title) { err.textContent = 'Bir başlık yaz.'; return; }
+    if (!parseYMD(date)) { err.textContent = 'Bir tarih seç.'; return; }
+    if (daysBetween(todayYMD(), parseYMD(date)) > 0) { err.textContent = 'Tarih bugünden sonra olamaz.'; return; }
+    var btn = $('#tlBtn'); btn.disabled = true; btn.textContent = 'Kaydediliyor…';
+    var photoId = null, pendingId = '', file = $('#tlPhoto').files[0];
+    try {
+      if (file) {
+        var assets = await getAssets(); if (!assets) throw { code: 'not_granted' };
+        var up = await assets.upload(await shrink(file));
+        if (isAdmin()) photoId = up.id; else pendingId = up.id;
+      }
+    } catch (ex) { err.textContent = 'Fotoğraf eklenemedi. ' + uploadErrText(ex); btn.disabled = false; btn.textContent = 'Kaydet'; return; }
+    try {
+      await state.db.collection('memories').add({ title: title.slice(0, 80), date: date, body: $('#tlBody').value.trim(), place: $('#tlPlace').value.trim().slice(0, 60), photoId: photoId, pendingPhotoId: pendingId, by: state.me, createdAt: Date.now() });
+      $('#tlForm').reset(); $('#tlForm').hidden = true;
+      toast(pendingId ? 'Eklendi. Fotoğraf yönetici onayından sonra görünür.' : 'Çizelgeye eklendi.');
+    } catch (ex) { err.textContent = 'Kaydedilemedi. Birazdan tekrar dene.'; }
+    btn.disabled = false; btn.textContent = 'Kaydet';
+  });
+  function renderExtras2() { renderMilestone(); renderTimeline(); renderMeet(); renderAlbums(); }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var act = b.dataset.act, a = albumId && albById(albumId);
+    if (act === 'ms-mem') {
+      var n = daysTogether();
+      setTab('anilar'); $('#memForm').hidden = false; $('#memTitle').value = msLabel(n) + ' dönüm noktamız'; $('#memDate').value = todayKey(); $('#memTitle').focus();
+    } else if (act === 'meet-edit') { meetEditing = true; renderMeet(); var d = $('#meetDate'); if (d) d.focus();
+    } else if (act === 'meet-cancel') { meetEditing = false; renderMeet();
+    } else if (act === 'meet-clear') { state.db.doc('app/meet').delete().catch(fail);
+    } else if (act === 'alb-open') { albumId = b.dataset.id; renderAlbums(); window.scrollTo(0, 0);
+    } else if (act === 'alb-back') { albumId = null; renderAlbums();
+    } else if (act === 'alb-view') { var im = $('#lbImg'); im.src = blobUrl(b.dataset.pid); $('#lbDlg').showModal();
+    } else if (act === 'alb-approve' && a) {
+      saveAlbumPhotos(a.id, a.photos.map(function (p) { return p.id === b.dataset.pid ? Object.assign({}, p, { pending: false }) : p; })).then(function () { toast('Fotoğraf onaylandı.'); }).catch(fail);
+    } else if (act === 'alb-delph' && a) {
+      if (!armed(b)) return;
+      var pid = b.dataset.pid;
+      saveAlbumPhotos(a.id, a.photos.filter(function (p) { return p.id !== pid; })).then(function () { if (state.assets) state.assets.delete(pid).catch(function () {}); }).catch(fail);
+    } else if (act === 'alb-del' && a) {
+      if (!armed(b)) return;
+      state.db.doc('albums/' + a.id).delete().then(function () {
+        (a.photos || []).forEach(function (p) { if (state.assets) state.assets.delete(p.id).catch(function () {}); });
+        albumId = null; toast('Albüm silindi.');
+      }).catch(fail);
+    } else if (act === 'copy-link') {
+      var url = location.origin + location.pathname, box = $('#linkBox'); box.hidden = false; box.value = url; box.focus(); box.select();
+      try { navigator.clipboard.writeText(url).then(function () { toast('Bağlantı kopyalandı.'); }, function () {}); } catch (x) {}
+    }
+  });
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (f.id === 'meetForm') {
+      e.preventDefault(); var d = $('#meetDate').value;
+      if (!parseYMD(d)) { $('#meetErr').textContent = 'Bir tarih seç.'; return; }
+      state.db.doc('app/meet').set({ date: d, note: $('#meetNote').value.trim().slice(0, 60), by: state.me, at: Date.now() }).then(function () { meetEditing = false; renderMeet(); sendNote('Bir sonraki görüşmemiz: ' + fmtLong(parseYMD(d))); }).catch(fail);
+    } else if (f.id === 'albForm') {
+      e.preventDefault(); var t = $('#albTitle').value.trim(); if (!t) return;
+      state.db.collection('albums').add({ title: t.slice(0, 60), by: state.me, photos: [], createdAt: Date.now() }).then(function (ref) { $('#albTitle').value = ''; if (ref && ref.id) { albumId = ref.id; renderAlbums(); } }).catch(fail);
+    }
+  });
+  $('#lbDlg').addEventListener('click', function () { $('#lbDlg').close(); });
+
+  /* ---------- Başlangıç ---------- */
+  async function init() {
+    show('loading');
+    var db = null;
+    try { if (window.__host && window.__host.use) db = await window.__host.use('db'); } catch (e) { db = null; }
+    if (!db) { show('nodb'); return; }
+    state.db = db;
+    var auth = null;
+    try { auth = await window.__host.use('auth'); } catch (e) { auth = null; }
+    if (!auth) { show('nodb'); return; }
+    state.auth = auth;
+    var onErr = function (e) { toast('Veriler alınamadı. Sayfayı yenile.'); };
+    db.doc('app/settings').onSnapshot(function (snap) {
+      state.settings = snap.exists ? snap.data() : null; route();
+    }, onErr);
+    var membersUnsub = null;
+    auth.onChange(function (u, ev) {
+      if (ev === 'PASSWORD_RECOVERY') state.recovery = true;
+      state.authUser = u; state.viewer = { isOwner: false, name: '', email: u ? u.email : '', avatar: '', key: 'u' };
+      if (membersUnsub) { membersUnsub(); membersUnsub = null; }
+      state.members = undefined;
+      if (u) membersUnsub = db.doc('app/members').onSnapshot(function (snap) {
+        state.members = snap.exists ? snap.data() : null; route();
+      }, function () { state.members = 'denied'; route(); });
+      route();
+    });
+    db.collection('welcome').onSnapshot(function (snap) {
+      state.welcome = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+      renderShow(); renderWelcomeAdmin(); if (inMain()) renderHomeShow();
+    }, onErr);
+    state.startData = function () {
+    db.collection('memories').onSnapshot(function (snap) {
+      state.memories = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (inMain()) { renderMemories(); renderHome(); renderTimeline(); }
+    }, onErr);
+    db.collection('todos').onSnapshot(function (snap) {
+      state.todos = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (inMain()) { renderTodos(); renderHome(); }
+    }, onErr);
+    db.collection('tracks').onSnapshot(function (snap) {
+      state.tracks = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+        .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+      if (state.curId) {
+        var i = state.tracks.findIndex(function (t) { return t.id === state.curId; });
+        state.cur = i;
+        if (i < 0) { audio.pause(); audio.removeAttribute('src'); state.curId = null; state.playing = false; }
+      }
+      if (state.wantPlay && state.tracks.length && inMain()) { state.wantPlay = false; setTrack(0, true); }
+      if (inMain()) { renderTracks(); renderPlayer(); }
+    }, onErr);
+    db.collection('notes').orderBy('createdAt', 'desc').limit(100).onSnapshot(function (snap) {
+      state.notes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      if (state.notesReady && inMain() && state.tab !== 'bildirim') {
+        snap.docChanges().forEach(function (c) {
+          if (c.type !== 'added') return;
+          var d = c.doc.data() || {};
+          if (d.from && d.from !== state.me && !c.doc.metadata.hasPendingWrites) toast(authorOf(d.from) + ': ' + String(d.text || '').slice(0, 80));
+        });
+      }
+      state.notesReady = true;
+      if (inMain()) renderNotes();
+    }, onErr);
+    subX('events', 'events'); subX('wishes', 'wishes'); subX('letters', 'letters'); subX('answers', 'answers'); subX('moods', 'moods'); subX('items', 'items'); subX('albums', 'albums');
+    db.doc('app/meet').onSnapshot(function (snap) { X.meet = snap.exists ? snap.data() : null; if (inMain()) renderMeet(); }, function () {});
+    db.collection('seen').onSnapshot(function (snap) {
+      var s = {};
+      snap.docs.forEach(function (d) { s[d.id] = (d.data() || {}).at || 0; });
+      state.seen = s;
+      if (inMain()) renderNotes();
+    }, onErr);
+    };
+    try {
+      window.__host.use('assets').then(function (a) { state.assets = a; if (inMain()) syncAssetsUI(); }, function () {});
+    } catch (e) {}
+  }
+  init();
+})();
+</script>
+</body>
+</html>
