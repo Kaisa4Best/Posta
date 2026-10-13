@@ -176,6 +176,7 @@ try {
   window.__fbResolve({ db: db, assets: assets, auth: auth });
 } catch (e) { console.error(e); window.__fbResolve(null); }
 </script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Hanken+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -280,6 +281,19 @@ input[type=file]::file-selector-button { font: 700 14px var(--body); margin-righ
 .nav-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 13px 12px; font: 500 17px var(--body); color: var(--ink); cursor: pointer; }
 .nav-item:hover { background: var(--surface-2); }
 .nav-item[aria-current="page"] { background: var(--surface-2); font-weight: 700; }
+.nav-group { display: block; }
+.nav-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; background: none; border: 0; border-radius: 8px; padding: 12px 12px; font: 700 13px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); cursor: pointer; text-align: left; }
+.nav-head:hover { background: var(--surface-2); }
+.nav-head i { width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .18s; margin-right: 4px; flex: none; }
+.nav-head[aria-expanded="true"] i { transform: rotate(-135deg); }
+.nav-group:has(.badge:not([hidden])) > .nav-head span::after { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-left: 8px; vertical-align: middle; }
+.nav-sub { display: none; padding-left: 10px; border-left: 2px solid var(--line); margin: 0 0 6px 14px; }
+.nav-group.open > .nav-sub { display: block; }
+.nav-sub .nav-item { font-size: 16px; padding: 11px 12px; }
+.push summary { cursor: pointer; font-weight: 700; }
+.push .steps { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.push input[readonly] { width: 100%; font: 500 15px var(--mono); }
+
 .drawer-sep { height: 1px; background: var(--line); margin: 10px 8px; }
 @media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
 
@@ -363,6 +377,14 @@ details summary { cursor: pointer; }
 .pend-info { min-width: 0; flex: 1; }
 .pending-note { margin-top: 8px; font-size: 14px; color: var(--muted); }
 dialog { max-height: 90vh; overflow-y: auto; }
+
+/* Mesafe */
+.dist-map { height: min(52vh, 380px); min-height: 260px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface-2); overflow: hidden; position: relative; z-index: 0; }
+.dist-map .leaflet-container { font-family: var(--body); }
+:root[data-theme="dark"] .dist-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dist-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.88); } }
+.dist-big { font: 800 clamp(30px, 9vw, 44px)/1.1 var(--display); letter-spacing: -.01em; }
+.dist-tip { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font-weight: 700; box-shadow: none; }
 
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-block: 26px 14px; }
 .sec-head h2 { font-size: 26px; font-weight: 800; }
@@ -549,18 +571,39 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   <nav class="drawer" id="drawer" aria-label="Menü">
     <div class="who" id="who"></div>
     <button class="nav-item" type="button" data-tab="bugun">Bugün</button>
-    <button class="nav-item" type="button" data-tab="anilar">Anılar<span class="badge" id="memBadge" hidden></span></button>
-    <button class="nav-item" type="button" data-tab="liste">Listemiz</button>
-    <button class="nav-item" type="button" data-tab="zaman">Zaman çizelgesi</button>
-    <button class="nav-item" type="button" data-tab="albumler">Albümler</button>
-    <button class="nav-item" type="button" data-tab="takvim">Takvim</button>
-    <button class="nav-item" type="button" data-tab="dilek">Dilek kutusu</button>
-    <button class="nav-item" type="button" data-tab="mektup">Mektuplar</button>
-    <button class="nav-item" type="button" data-tab="hediye">Hediye ve alışveriş</button>
-    <button class="nav-item" type="button" data-tab="ozet">Yıllık özet</button>
-    <button class="nav-item" type="button" data-tab="uygulama">Uygulama gibi aç</button>
-    <button class="nav-item" type="button" data-tab="bildirim">Bildirimler<span class="badge" id="noteBadge" hidden></span></button>
-    <button class="nav-item" type="button" data-tab="muzik">Müzik</button>
+    <div class="nav-group" data-g="anilar">
+      <button class="nav-head" type="button" aria-expanded="false"><span>Anılarımız</span><i aria-hidden="true"></i></button>
+      <div class="nav-sub">
+        <button class="nav-item" type="button" data-tab="anilar">Anılar<span class="badge" id="memBadge" hidden></span></button>
+        <button class="nav-item" type="button" data-tab="zaman">Zaman çizelgesi</button>
+        <button class="nav-item" type="button" data-tab="albumler">Albümler</button>
+        <button class="nav-item" type="button" data-tab="ozet">Yıllık özet</button>
+      </div>
+    </div>
+    <div class="nav-group" data-g="plan">
+      <button class="nav-head" type="button" aria-expanded="false"><span>Birlikte planlar</span><i aria-hidden="true"></i></button>
+      <div class="nav-sub">
+        <button class="nav-item" type="button" data-tab="liste">Listemiz</button>
+        <button class="nav-item" type="button" data-tab="takvim">Takvim</button>
+        <button class="nav-item" type="button" data-tab="dilek">Dilek kutusu</button>
+        <button class="nav-item" type="button" data-tab="hediye">Hediye ve alışveriş</button>
+      </div>
+    </div>
+    <div class="nav-group" data-g="aramiz">
+      <button class="nav-head" type="button" aria-expanded="false"><span>Aramızda</span><i aria-hidden="true"></i></button>
+      <div class="nav-sub">
+        <button class="nav-item" type="button" data-tab="bildirim">Mesajlar<span class="badge" id="noteBadge" hidden></span></button>
+        <button class="nav-item" type="button" data-tab="mektup">Mektuplar</button>
+        <button class="nav-item" type="button" data-tab="mesafe">Mesafe</button>
+      </div>
+    </div>
+    <div class="nav-group" data-g="diger">
+      <button class="nav-head" type="button" aria-expanded="false"><span>Daha fazlası</span><i aria-hidden="true"></i></button>
+      <div class="nav-sub">
+        <button class="nav-item" type="button" data-tab="muzik">Müzik</button>
+        <button class="nav-item" type="button" data-tab="uygulama">Uygulama gibi aç</button>
+      </div>
+    </div>
     <div class="drawer-sep"></div>
     <button class="nav-item" type="button" id="btnSettings">Ayarlar</button>
     <button class="nav-item" type="button" id="btnLogout">Çıkış</button>
@@ -635,8 +678,8 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
   <!-- Bildirimler -->
   <section id="p-bildirim" data-panel hidden>
-    <div class="sec-head"><h2>Bildirimlerimiz</h2><span class="muted small" id="noteCount"></span></div>
-    <p class="muted" style="max-width:62ch">Birbirinize kısa notlar gönderin. Karşı taraf siteyi açıkken not anında belirir. Site kapalıysa not, açtığında onu bekler. Telefona bildirim düşmez.</p>
+    <div class="sec-head"><h2>Mesajlarımız</h2><span class="muted small" id="noteCount"></span></div>
+    <p class="muted" style="max-width:62ch">Birbirinize kısa mesajlar gönderin. Karşı taraf siteyi açıkken mesaj anında belirir. Site kapalıyken de telefona bildirim düşmesi için aşağıdaki ayarı bir kez yapın.</p>
     <form class="add-row" id="noteForm" autocomplete="off" style="margin-top:16px">
       <label for="noteText" class="label" style="position:absolute;left:-9999px">Yeni not</label>
       <input type="text" id="noteText" maxlength="240" placeholder="Bir şey yaz…">
@@ -650,6 +693,10 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <button class="btn" type="button" data-act="quick" data-text="Eve geliyorum">Eve geliyorum</button>
       <button class="btn" type="button" data-act="quick" data-text="Müsait olunca ara">Müsait olunca ara</button>
     </div>
+    <details class="panel push" id="pushBox" style="margin-top:16px">
+      <summary>Telefona bildirim düşsün</summary>
+      <div id="pushBody"></div>
+    </details>
     <div id="noteList"></div>
   </section>
 
@@ -664,6 +711,15 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <p class="muted small" id="trackNoPerm" hidden style="margin-top:12px">Şarkı yükleme şu an kullanılamıyor.</p>
     <p style="margin-top:12px" id="plWrap" hidden><a id="plLink" href="#" target="_blank" rel="noopener noreferrer">Spotify ya da YouTube playlistimizi aç</a></p>
     <div class="tracks" id="trackList"></div>
+  </section>
+
+  <!-- Mesafe -->
+  <section id="p-mesafe" data-panel hidden>
+    <div class="sec-head"><h2>Aramızdaki mesafe</h2></div>
+    <div class="dist-map" id="distMap" role="img" aria-label="İkinizin konumunu gösteren harita"></div>
+    <div class="panel" id="distInfo" style="margin-top:12px"></div>
+    <div class="actions" id="distActions" style="margin-top:12px"></div>
+    <p class="muted small" style="margin-top:10px">Konumlar yalnızca ikinize görünür. Konum, siteyi açık tuttuğun sürece güncellenir. İstediğin an paylaşımı durdurabilirsin.</p>
   </section>
 
   <!-- Takvim -->
@@ -1237,6 +1293,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       al.innerHTML = '<p class="k">Yeni bildirim (' + un.length + ')</p><p class="v" style="overflow-wrap:anywhere">' + esc(authorOf(un[0].from)) + ': ' + esc(un[0].text) + '</p>' +
         '<p style="margin-top:8px"><button class="link-btn" type="button" data-act="goto" data-tab="bildirim">Bildirimlere git</button></p>';
     } else { al.hidden = true; al.innerHTML = ''; }
+    renderPush();
     var box = $('#noteList');
     if (!state.notes.length) {
       box.innerHTML = '<div class="empty" style="margin-top:20px"><p class="t">Henüz bildirim yok</p><p>İlk notu sen gönder. Yukarıdaki hazır notlardan birine dokunman yeter.</p></div>';
@@ -1252,11 +1309,59 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     }).join('') + '</div>';
     markSeen();
   }
+
+  /* ---------- Telefona bildirim (ntfy) ---------- */
+  function pushBase() { return (state.settings && /^[a-z0-9]{12,40}$/.test(state.settings.ntfyBase || '')) ? state.settings.ntfyBase : ''; }
+  function pushTopic(key) { var b = pushBase(); return b ? b + '-' + String(key).toLowerCase() : ''; }
+  function pushTo(key, title, msg) {
+    var t = pushTopic(key); if (!t) return;
+    try {
+      fetch('https://ntfy.sh', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: t, title: title, message: String(msg).slice(0, 240), click: location.href.split('#')[0].split('?')[0], tags: ['love_letter'] }) }).catch(function () {});
+    } catch (e) {}
+  }
+  function renderPush() {
+    var box = $('#pushBody'); if (!box) return;
+    var base = pushBase(), perm = ('Notification' in window) ? Notification.permission : 'unsupported', h = '';
+    if (!base) {
+      h = '<p class="muted small" style="margin-top:10px">Site kapalıyken bile telefonuna bildirim düşmesi için ücretsiz “ntfy” uygulaması kullanılır.</p>';
+      if (isAdmin()) h += '<div class="actions"><button class="btn primary" type="button" data-push="enable">Bildirimleri etkinleştir</button></div>';
+      else h += '<p class="muted small">Yönetici etkinleştirince burada kurulum adımları görünür.</p>';
+    } else {
+      var mine = pushTopic(state.me);
+      h = '<ol class="steps">' +
+        '<li>Telefonuna <b>ntfy</b> uygulamasını kur (ücretsiz): <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a> · <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a></li>' +
+        '<li>Uygulamayı aç, <b>+</b> düğmesine bas, aşağıdaki konu adını yapıştır ve <b>Subscribe</b> de. Sunucu kısmına dokunma, olduğu gibi kalsın.</li>' +
+        '</ol><div class="field" style="margin-top:10px"><label for="pushTopic">Senin konu adın</label><input type="text" id="pushTopic" readonly value="' + esc(mine) + '"></div>' +
+        '<div class="actions"><button class="btn" type="button" data-push="copy">Kopyala</button><button class="btn" type="button" data-push="test">Test bildirimi gönder</button></div>' +
+        '<p class="muted small" style="margin-top:10px">Mesaj metni bildirim için ntfy.sh servisinden geçer. Konu adını kimseyle paylaşma.</p>';
+    }
+    if (perm === 'default') h += '<div class="actions" style="margin-top:6px"><button class="link-btn" type="button" data-push="browser">Bu tarayıcıda da bildirim göster</button></div>';
+    else if (perm === 'granted') h += '<p class="muted small" style="margin-top:6px">Tarayıcı bildirimi açık (site arka plandayken gösterilir).</p>';
+    box.innerHTML = h;
+  }
+  $('#p-bildirim').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-push]'); if (!b) return;
+    var a = b.dataset.push;
+    if (a === 'enable') {
+      var arr = new Uint8Array(10); crypto.getRandomValues(arr);
+      var base = 'pk' + Array.prototype.map.call(arr, function (x) { return x.toString(16).padStart(2, '0'); }).join('');
+      state.db.doc('app/settings').update({ ntfyBase: base }).then(function () { toast('Etkinleştirildi. Şimdi adımları uygula.'); }).catch(fail);
+    } else if (a === 'copy') {
+      var inp = $('#pushTopic'); inp.select();
+      try { navigator.clipboard.writeText(inp.value).then(function () { toast('Kopyalandı.'); }, function () { document.execCommand('copy'); toast('Kopyalandı.'); }); } catch (x) { try { document.execCommand('copy'); toast('Kopyalandı.'); } catch (y) {} }
+    } else if (a === 'test') {
+      pushTo(state.me, 'Posta Kutumuz', 'Test bildirimi. Bunu görüyorsan her şey tamam ♥'); toast('Test gönderildi. Birkaç saniye içinde telefonda görünmeli.');
+    } else if (a === 'browser') {
+      try { Notification.requestPermission().then(renderPush); } catch (x) {}
+    }
+  });
+
   function sendNote(text) {
     text = String(text || '').trim();
     if (!text) return Promise.resolve();
     return state.db.collection('notes').add({ text: text.slice(0, 240), from: state.me, createdAt: Date.now() })
-      .then(function () { toast('Gönderildi.'); }).catch(fail);
+      .then(function () { toast('Gönderildi.'); pushTo(state.me === 'A' ? 'B' : 'A', authorOf(state.me) || 'Posta Kutumuz', text); }).catch(fail);
   }
 
   function renderTracks() {
@@ -1293,8 +1398,10 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'takvim', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'takvim', 'mesafe', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
+    if (window.paintNav) window.paintNav();
+    if (tab === 'mesafe' && window.renderMesafe) setTimeout(window.renderMesafe, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
       if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -1678,10 +1785,32 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   paintSwitch();
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintSwitch); } catch (e) {}
 
+
+  /* ---------- Menü grupları ---------- */
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe'], diger: ['muzik', 'uygulama'] };
+  function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
+  window.paintNav = paintNav;
+  function paintNav() {
+    var open = navOpenSet(), cur = state.tab;
+    $$('.nav-group').forEach(function (g) {
+      var id = g.dataset.g, has = (NAVG[id] || []).indexOf(cur) >= 0, on = open.indexOf(id) >= 0 || has;
+      g.classList.toggle('open', on); g.querySelector('.nav-head').setAttribute('aria-expanded', on ? 'true' : 'false');
+    });
+  }
+  $('#drawer').addEventListener('click', function (e) {
+    var h = e.target.closest('.nav-head'); if (!h) return;
+    var g = h.parentNode, id = g.dataset.g, open = navOpenSet(), i = open.indexOf(id);
+    var isOn = g.classList.contains('open');
+    if (isOn) { if (i >= 0) open.splice(i, 1); g.classList.remove('open'); h.setAttribute('aria-expanded', 'false'); if ((NAVG[id] || []).indexOf(state.tab) >= 0) { open = open.filter(function (x) { return x !== id; }); g.classList.remove('open'); } }
+    else { if (i < 0) open.push(id); g.classList.add('open'); h.setAttribute('aria-expanded', 'true'); }
+    LS.set('posta:navopen', JSON.stringify(open));
+  });
+
   /* ---------- Soldaki menü ---------- */
   function openMenu() {
     $('#drawer').classList.add('open'); $('#scrim').hidden = false;
     $('#btnMenu').setAttribute('aria-expanded', 'true');
+    paintNav();
     var f = $('#drawer .nav-item'); if (f) f.focus();
   }
   function closeMenu() {
@@ -1956,6 +2085,149 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     var top = mems.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); })[0];
     $('#ozetFirst').innerHTML = top ? '<p class="k">Yılın ilk anısı</p><p class="v">' + esc(top.title) + '</p><p class="sub">' + esc(fmtLong(parseYMD(top.date))) + '</p>' : '';
   }
+
+  /* ---------- Mesafe ---------- */
+  var LOC = { docs: {}, map: null, mapReady: null, layers: null, route: null, routeKey: '', routeInfo: null, watch: null, lastW: 0, lastPos: null };
+  function locKey(k) { return 'loc' + k; }
+  function locLS() { return 'posta:loc:' + (state.email || state.me); }
+  function distKm(a, b) {
+    var R = 6371, rad = Math.PI / 180, dLa = (b.lat - a.lat) * rad, dLo = (b.lng - a.lng) * rad;
+    var h = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLo / 2) * Math.sin(dLo / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function fmtKm(km) { return km < 1 ? Math.round(km * 1000) + ' m' : km < 10 ? km.toFixed(1).replace('.', ',') + ' km' : Math.round(km).toLocaleString('tr-TR') + ' km'; }
+  function fmtDur(sec) { var m = Math.round(sec / 60); if (m < 60) return m + ' dk'; var h = Math.floor(m / 60); return h + ' sa' + (m % 60 ? ' ' + (m % 60) + ' dk' : ''); }
+  function fmtAgo(t) {
+    var d = Math.max(0, Date.now() - t), m = Math.round(d / 60000);
+    if (m < 1) return 'az önce'; if (m < 60) return m + ' dk önce'; var h = Math.round(m / 60); if (h < 24) return h + ' sa önce'; return Math.round(h / 24) + ' gün önce';
+  }
+  function validLoc(d) { return d && typeof d.lat === 'number' && typeof d.lng === 'number' && isFinite(d.lat) && isFinite(d.lng) && Math.abs(d.lat) <= 90 && Math.abs(d.lng) <= 180; }
+  function ensureLeaflet() {
+    if (window.L) return Promise.resolve(true);
+    if (LOC.mapReady) return LOC.mapReady;
+    LOC.mapReady = new Promise(function (res) {
+      var sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      sc.onload = function () { res(!!window.L); };
+      sc.onerror = function () { LOC.mapReady = null; res(false); };
+      document.head.appendChild(sc);
+    });
+    return LOC.mapReady;
+  }
+  function setShare(on) {
+    LS.set(locLS(), on ? 'on' : 'off');
+    if (on) startWatch(true); else stopWatch(true);
+  }
+  function writeLoc(pos, force) {
+    var c = pos.coords, now = Date.now();
+    var cur = { lat: c.latitude, lng: c.longitude };
+    if (!force && LOC.lastPos && now - LOC.lastW < 45000 && distKm(LOC.lastPos, cur) < 0.1) return;
+    if (!force && now - LOC.lastW < 15000) return;
+    LOC.lastW = now; LOC.lastPos = cur;
+    state.db.doc('seen/' + locKey(state.me)).set({ lat: cur.lat, lng: cur.lng, acc: Math.round(c.accuracy || 0), at: now }).catch(function (e) { if (force) fail(e); });
+  }
+  function startWatch(user) {
+    if (LOC.watch != null) return;
+    if (!navigator.geolocation) { if (user) toast('Bu tarayıcı konum desteklemiyor.'); return; }
+    LOC.firstFix = !!user;
+    LOC.watch = navigator.geolocation.watchPosition(function (pos) {
+      if (!state.authUser) { stopWatch(false); return; }
+      writeLoc(pos, LOC.firstFix); LOC.firstFix = false;
+    }, function (err) {
+      LOC.watch = null; LS.set(locLS(), 'off');
+      toast(err && err.code === 1 ? 'Konum izni verilmedi. Tarayıcı ayarlarından siteye konum izni ver.' : 'Konum alınamadı. Biraz sonra tekrar dene.');
+      renderMesafe();
+    }, { enableHighAccuracy: false, maximumAge: 30000, timeout: 30000 });
+  }
+  function stopWatch(remove) {
+    if (LOC.watch != null && navigator.geolocation) navigator.geolocation.clearWatch(LOC.watch);
+    LOC.watch = null; LOC.lastPos = null;
+    if (remove && state.db && state.me) state.db.doc('seen/' + locKey(state.me)).delete().catch(function () {});
+    renderMesafe();
+  }
+  function navLink(from, to) {
+    return 'https://www.google.com/maps/dir/?api=1&origin=' + from.lat + ',' + from.lng + '&destination=' + to.lat + ',' + to.lng + '&travelmode=driving';
+  }
+  window.renderMesafe = renderMesafe;
+  function renderMesafe() {
+    var info = $('#distInfo'), act = $('#distActions'); if (!info) return;
+    var me = state.me, ot = other(), nm = names(), mine = LOC.docs[me], theirs = LOC.docs[ot];
+    var hasMine = validLoc(mine), hasTheirs = validLoc(theirs), sharing = LOC.watch != null || LS.get(locLS()) === 'on';
+    var h = '', a = '';
+    if (hasMine && hasTheirs) {
+      var km = distKm(mine, theirs);
+      h = '<p class="k">' + esc(nm[ot]) + ' şu an senden</p><p class="dist-big">' + (km < 0.05 ? 'Yanındasınız ♥' : esc(fmtKm(km)) + ' uzakta') + '</p>';
+      if (LOC.routeInfo && LOC.routeInfo.key === routeKeyOf(mine, theirs)) h += '<p class="sub">Karayoluyla ' + esc(fmtKm(LOC.routeInfo.km)) + ' · yaklaşık ' + esc(fmtDur(LOC.routeInfo.sec)) + '</p>';
+      h += '<p class="sub">Kuş uçuşu · ' + esc(nm[ot]) + ' son güncelleme: ' + esc(fmtAgo(theirs.at || 0)) + '</p>';
+      if (km >= 0.05) a += '<a class="btn primary" target="_blank" rel="noopener" href="' + esc(navLink(mine, theirs)) + '">' + esc(nm[ot]) + '’e navigasyonu aç</a> ';
+    } else if (hasMine) {
+      h = '<p class="dist-big">' + esc(nm[ot] || 'Sevgilin') + ' bekleniyor</p><p class="sub">' + esc(nm[ot] || 'Sevgilin') + ' bu sayfada konumunu paylaşınca mesafe burada görünecek.</p>';
+    } else if (hasTheirs) {
+      h = '<p class="dist-big">Konumunu paylaş</p><p class="sub">' + esc(nm[ot]) + ' konumunu paylaştı. Sen de paylaşınca aranızdaki mesafe görünecek.</p>';
+    } else {
+      h = '<p class="dist-big">Ne kadar uzaktayız?</p><p class="sub">İkiniz de konumunuzu paylaşınca aranızdaki mesafe ve harita burada görünür.</p>';
+    }
+    if (sharing && hasMine) a += '<button class="btn" type="button" data-loc="off">Paylaşımı durdur</button>';
+    else if (sharing) a += '<button class="btn" type="button" disabled>Konum alınıyor…</button> <button class="link-btn" type="button" data-loc="off">Vazgeç</button>';
+    else a += '<button class="btn' + (hasMine && hasTheirs ? '' : ' primary') + '" type="button" data-loc="on">Konumumu paylaş</button>';
+    info.innerHTML = h; act.innerHTML = a;
+    drawMap();
+  }
+  function routeKeyOf(a, b) { return [a.lat, a.lng, b.lat, b.lng].map(function (x) { return x.toFixed(2); }).join(','); }
+  function drawMap() {
+    var el = $('#distMap'); if (!el || $('#p-mesafe').hidden) return;
+    var me = state.me, ot = other(), nm = names(), mine = LOC.docs[me], theirs = LOC.docs[ot];
+    ensureLeaflet().then(function (ok) {
+      if (!ok) { el.innerHTML = '<p class="muted" style="padding:16px">Harita yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.</p>'; return; }
+      if (!LOC.map) {
+        el.innerHTML = '';
+        LOC.map = L.map(el, { zoomControl: true, attributionControl: true }).setView([39, 35], 5);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(LOC.map);
+        LOC.layers = L.layerGroup().addTo(LOC.map);
+      }
+      LOC.map.invalidateSize();
+      LOC.layers.clearLayers();
+      var pts = [];
+      function pin(d, label, color) {
+        var m = L.circleMarker([d.lat, d.lng], { radius: 9, color: '#fff', weight: 3, fillColor: color, fillOpacity: 1 }).addTo(LOC.layers);
+        m.bindTooltip(label, { permanent: true, direction: 'top', offset: [0, -8], className: 'dist-tip' });
+        pts.push([d.lat, d.lng]);
+      }
+      if (validLoc(mine)) pin(mine, nm[me] || 'Ben', '#c23f2a');
+      if (validLoc(theirs)) pin(theirs, nm[ot] || 'Sevgilin', '#285a9c');
+      if (pts.length === 2) {
+        var key = routeKeyOf(mine, theirs);
+        var drawLine = function (coords, dashed) { L.polyline(coords, { color: '#c23f2a', weight: 4, opacity: .85, dashArray: dashed ? '8 8' : null }).addTo(LOC.layers); };
+        if (LOC.route && LOC.route.key === key) drawLine(LOC.route.coords, false);
+        else {
+          drawLine(pts, true);
+          if (LOC.routeKeyLoading !== key) {
+            LOC.routeKeyLoading = key;
+            var url = 'https://router.project-osrm.org/route/v1/driving/' + mine.lng + ',' + mine.lat + ';' + theirs.lng + ',' + theirs.lat + '?overview=simplified&geometries=geojson';
+            fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+              var rt = j && j.routes && j.routes[0]; if (!rt) return;
+              LOC.route = { key: key, coords: rt.geometry.coordinates.map(function (c) { return [c[1], c[0]]; }) };
+              LOC.routeInfo = { key: key, km: rt.distance / 1000, sec: rt.duration };
+              renderMesafe();
+            }).catch(function () {}).then(function () { LOC.routeKeyLoading = ''; });
+          }
+        }
+      }
+      var sig = pts.map(function (q) { return q[0].toFixed(2) + ',' + q[1].toFixed(2); }).join('|');
+      if (sig !== LOC.fitSig) {
+        LOC.fitSig = sig;
+        if (pts.length === 2) LOC.map.fitBounds(pts, { padding: [50, 50], maxZoom: 14 });
+        else if (pts.length === 1) LOC.map.setView(pts[0], 13);
+      }
+    });
+  }
+  $('#p-mesafe').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-loc]'); if (!b) return;
+    setShare(b.dataset.loc === 'on'); renderMesafe();
+  });
+  $('#btnLogout').addEventListener('click', function () { stopWatch(false); });
+  function resumeLoc() { if (LS.get(locLS()) === 'on' && LOC.watch == null) startWatch(false); }
+
 
   function renderExtras() {
     renderExtras2(); renderCalendar(); renderUpcomingHome(); renderWishes(); renderLetters(); renderGifts(); renderDaily(); renderOzet();
@@ -2244,7 +2516,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     state.auth = auth;
     var onErr = function (e) { toast('Veriler alınamadı. Sayfayı yenile.'); };
     db.doc('app/settings').onSnapshot(function (snap) {
-      state.settings = snap.exists ? snap.data() : null; route();
+      state.settings = snap.exists ? snap.data() : null; route(); if (inMain()) renderPush();
     }, onErr);
     var membersUnsub = null;
     auth.onChange(function (u, ev) {
@@ -2289,6 +2561,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
           if (c.type !== 'added') return;
           var d = c.doc.data() || {};
           if (d.from && d.from !== state.me && !c.doc.metadata.hasPendingWrites) toast(authorOf(d.from) + ': ' + String(d.text || '').slice(0, 80));
+          if (d.from && d.from !== state.me && document.hidden && ('Notification' in window) && Notification.permission === 'granted' && (d.createdAt || 0) > Date.now() - 120000) { try { new Notification(authorOf(d.from), { body: String(d.text || '').slice(0, 120), icon: 'icon-192.png' }); } catch (x) {} }
         });
       }
       state.notesReady = true;
@@ -2298,8 +2571,9 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     db.doc('app/meet').onSnapshot(function (snap) { X.meet = snap.exists ? snap.data() : null; if (inMain()) renderMeet(); }, function () {});
     db.collection('seen').onSnapshot(function (snap) {
       var s = {};
-      snap.docs.forEach(function (d) { s[d.id] = (d.data() || {}).at || 0; });
-      state.seen = s;
+      var lc = {};
+      snap.docs.forEach(function (d) { if (d.id === 'locA' || d.id === 'locB') lc[d.id.slice(3)] = d.data() || null; else s[d.id] = (d.data() || {}).at || 0; });
+      state.seen = s; LOC.docs = lc; resumeLoc(); if (inMain() && !$('#p-mesafe').hidden) renderMesafe();
       if (inMain()) renderNotes();
     }, onErr);
     };
