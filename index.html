@@ -394,6 +394,37 @@ dialog { max-height: 90vh; overflow-y: auto; }
 .wx { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
 .wx .panel .t { font: 800 28px/1.1 var(--display); }
 .pin-row { display: grid; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.lb { position: fixed; inset: 0; z-index: 60; background: rgba(6,9,14,.94); display: flex; align-items: center; justify-content: center; touch-action: pan-y; }
+.lb img { max-width: 100%; max-height: 82vh; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.lb-x { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.16); color: #fff; font-size: 28px; line-height: 1; cursor: pointer; }
+.lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 64px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 34px; cursor: pointer; border-radius: 10px; }
+.lb-prev { left: 6px; } .lb-next { right: 6px; }
+.lb-cap { position: absolute; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); text-align: center; color: #fff; font-size: 14px; padding: 0 60px; }
+.mem-thumbs { display: flex; gap: 4px; padding: 4px; overflow-x: auto; background: var(--surface-2); }
+.mem .mem-thumbs img { width: 64px; height: 64px; aspect-ratio: 1; object-fit: cover; border-radius: 6px; cursor: pointer; flex: none; }
+.mem img[data-lb] { cursor: zoom-in; }
+.pic-count { position: absolute; right: 8px; top: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 99px; }
+.mem-wrap { position: relative; }
+.bd { display: block; width: 100%; max-width: 640px; aspect-ratio: 1; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); touch-action: none; cursor: crosshair; }
+.bd-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; max-width: 640px; }
+.bd-sw { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; }
+.bd-sw.on { box-shadow: 0 0 0 3px var(--ink); }
+.bd-w { width: 40px; height: 34px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.bd-w i { display: block; background: var(--ink); border-radius: 99px; width: 22px; }
+.bd-w.on { outline: 3px solid var(--ink); }
+.bd-tools .btn { padding: 8px 12px; font-size: 14px; }
+.chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chips-row button { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 99px; padding: 6px 12px; font: 500 15px var(--mono); cursor: pointer; }
+.med { padding: 14px 0; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.med h3 { font-size: 18px; }
+.dose { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 6px 0; }
+.dose .tm { font: 700 17px var(--mono); font-variant-numeric: tabular-nums; }
+.dose.late .tm { color: var(--red); }
+.dose .ok { color: var(--ok, #1d7a4a); font-weight: 700; }
+.biolock { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 20px; background: var(--bg); }
+.biolock-card { width: min(380px, 100%); display: grid; gap: 12px; padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); text-align: left; }
+.biolock-card h2 { font-size: 34px; }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .biolock { background: rgba(10,14,20,.45); -webkit-backdrop-filter: blur(28px) saturate(160%); backdrop-filter: blur(28px) saturate(160%); } .biolock-card { background: linear-gradient(145deg, var(--glass-bg), var(--glass-bg2)); border-color: var(--glass-brd); } }
 .sec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-block: 26px 14px; }
 .sec-head h2 { font-size: 26px; font-weight: 800; }
 
@@ -676,6 +707,8 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <button class="nav-item" type="button" data-tab="bildirim">Mesajlar<span class="badge" id="noteBadge" hidden></span></button>
         <button class="nav-item" type="button" data-tab="mektup">Mektuplar</button>
         <button class="nav-item" type="button" data-tab="mesafe">Mesafe</button>
+        <button class="nav-item" type="button" data-tab="cizim">Çizim tahtası</button>
+        <button class="nav-item" type="button" data-tab="ilac">İlaç hatırlatıcı</button>
       </div>
     </div>
     <div class="nav-group" data-g="diger">
@@ -712,6 +745,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
     <div class="panel otd" id="noteAlert" hidden></div>
     <div class="panel" id="statusBox" style="margin-top:12px"></div>
+    <div class="panel" id="medBox" style="margin-top:12px" hidden></div>
 
     <div class="stats">
       <div class="panel"><p class="k">Sonraki yüzlük</p><p class="v" id="stHundred"></p><p class="sub" id="stHundredSub"></p></div>
@@ -745,7 +779,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <p class="muted small" id="memPinSt"></p>
       </div>
       <div class="field"><label for="memBody">Notun (isteğe bağlı)</label><textarea id="memBody" maxlength="1500"></textarea></div>
-      <div class="field" id="memPhotoField"><label for="memPhoto" id="memPhotoLbl">Fotoğraf (isteğe bağlı)</label><input type="file" id="memPhoto" accept="image/jpeg,image/png,image/webp,image/gif"></div>
+      <div class="field" id="memPhotoField"><label for="memPhoto" id="memPhotoLbl">Fotoğraflar (isteğe bağlı, birden fazla seçebilirsin)</label><input type="file" id="memPhoto" accept="image/jpeg,image/png,image/webp,image/gif" multiple></div>
       <p class="err" id="memErr" role="alert"></p>
       <div class="actions"><button class="btn primary" type="submit" id="memBtn">Kaydet</button><button class="btn" type="button" id="memCancel">Vazgeç</button></div>
     </form>
@@ -808,6 +842,36 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <p class="muted small" style="margin-top:10px">Pinler, konum eklediğin anılardan gelir. Pine dokununca anının adı ve tarihi görünür.</p>
     <div class="actions" style="margin-top:10px"><button class="btn primary" type="button" id="pinAdd">Yeni anı ekle</button></div>
     <div id="pinNoLoc" style="margin-top:16px"></div>
+  </section>
+
+  <!-- Çizim tahtası -->
+  <section id="p-cizim" data-panel hidden>
+    <div class="sec-head"><h2>Çizim tahtamız</h2></div>
+    <div class="bd-tools" id="bdTools"></div>
+    <canvas id="bd" class="bd" width="1000" height="1000" aria-label="Ortak çizim tahtası"></canvas>
+    <p class="muted small" style="margin-top:8px">İkiniz de aynı tahtaya çizersiniz. Parmağını kaldırınca çizgi karşı tarafta da belirir.</p>
+    <p class="muted small" id="bdSt" role="status"></p>
+  </section>
+
+  <!-- İlaç hatırlatıcı -->
+  <section id="p-ilac" data-panel hidden>
+    <div class="sec-head"><h2>İlaç hatırlatıcı</h2><span class="muted small" id="medCount"></span></div>
+    <form class="panel form" id="medForm" autocomplete="off" novalidate style="margin-top:0">
+      <div class="field"><label for="medName">İlacın adı</label><input type="text" id="medName" maxlength="60"></div>
+      <div class="row2">
+        <div class="field"><label for="medDose">Doz ya da not (isteğe bağlı)</label><input type="text" id="medDose" maxlength="60" placeholder="1 tablet, tok karnına"></div>
+        <div class="field"><label for="medWho">Kimin ilacı?</label><select id="medWho"></select></div>
+      </div>
+      <div class="field"><label for="medTime">Saatler</label>
+        <div class="add-row"><input type="time" id="medTime" value="09:00"><button class="btn" type="button" id="medAddTime">Saat ekle</button></div>
+        <div class="chips-row" id="medTimes"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="medNotify" checked> İlacı aldığımda diğerine haber ver</label>
+      <p class="err" id="medErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit">Ekle</button></div>
+    </form>
+    <div id="medList"></div>
+    <p class="muted small" style="margin-top:10px">Site açıkken ve telefon bildirimi (Mesajlar sayfasındaki kurulum) etkinse hatırlatma saatinde bildirim gelir. Telefon bildirimi için siteyi günde en az bir kez açman gerekir.</p>
   </section>
 
   <!-- Mesafe -->
@@ -978,6 +1042,12 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     </div>
     </div>
     <div class="field">
+      <label>Parmak izi ya da yüz tanıma ile kilit</label>
+      <p class="muted small">Bu telefonda siteyi açarken kimlik doğrulaması ister. Başka biri telefonunu eline alsa bile siteye giremez. Yalnızca bu cihaz için geçerlidir.</p>
+      <div class="actions"><button class="btn" type="button" id="bioToggle">Etkinleştir</button></div>
+      <p class="muted small" id="bioSt" role="status"></p>
+    </div>
+    <div class="field">
       <label>Yedek</label>
       <p class="muted small">Anıları, listeleri, mesajları ve ayarları tek dosya olarak indirir. Fotoğraf ve müzik dosyaları sunucuda durur, yedekte bağlantıları bulunur.</p>
       <div class="actions"><button class="btn" type="button" id="btnBackup">Yedeği indir</button></div>
@@ -989,6 +1059,21 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   </form>
 </dialog>
 
+<div class="lb" id="lb" hidden role="dialog" aria-label="Fotoğraf">
+  <button class="lb-x" type="button" id="lbX" aria-label="Kapat">×</button>
+  <button class="lb-nav lb-prev" type="button" id="lbPrev" aria-label="Önceki">‹</button>
+  <img id="lbImg" alt="">
+  <button class="lb-nav lb-next" type="button" id="lbNext" aria-label="Sonraki">›</button>
+  <p class="lb-cap" id="lbCap"></p>
+</div>
+<div class="biolock" id="bioLock" hidden role="dialog" aria-label="Kilitli">
+  <div class="biolock-card">
+    <p class="kicker">Posta Kutumuz</p>
+    <h2>Kilitli</h2>
+    <p class="muted" id="bioMsg">Açmak için parmak izini ya da yüzünü kullan.</p>
+    <div class="actions"><button class="btn primary" type="button" id="bioGo">Kilidi aç</button><button class="link-btn" type="button" id="bioPw">Şifreyle gir</button></div>
+  </div>
+</div>
 <script>
 (function () {
   'use strict';
@@ -1306,14 +1391,16 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       return;
     }
     box.innerHTML = '<div class="mem-grid">' + list.map(function (m) {
-      var photo = ID_RE.test(m.photoId || '') ? '<img data-ph="1" src="' + blobUrl(m.photoId) + '" alt="" loading="lazy">' : '';
+      var pics = memPics(m);
+      var photo = pics.length ? '<div class="mem-wrap"><img data-ph="1" data-lb="' + esc(m.id) + '" data-i="0" src="' + blobUrl(pics[0]) + '" alt="" loading="lazy">' + (pics.length > 1 ? '<span class="pic-count">' + pics.length + ' fotoğraf</span>' : '') + '</div>' +
+        (pics.length > 1 ? '<div class="mem-thumbs">' + pics.slice(1).map(function (id, i) { return '<img data-lb="' + esc(m.id) + '" data-i="' + (i + 1) + '" src="' + blobUrl(id) + '" alt="" loading="lazy">'; }).join('') + '</div>' : '') : '';
       var who = authorOf(m.by);
       return '<article class="mem">' + photo + '<div class="mem-body">' +
         '<p class="stamp">' + esc(fmtStamp(m.date)) + (m.place ? ' · ' + esc(m.place) : '') + '</p>' +
         '<h3>' + esc(m.title) + '</h3>' +
         (m.body ? '<p class="mem-text">' + esc(m.body) + '</p>' : '') +
-        (ID_RE.test(m.pendingPhotoId || '') && !isAdmin() ? '<p class="pending-note">Fotoğraf yönetici onayını bekliyor.</p>' : '') +
-        '<div class="mem-foot"><span>' + (who ? esc(who) : '') + '</span><button class="link-btn" type="button" data-act="del-mem" data-id="' + esc(m.id) + '">Sil</button></div>' +
+        (memPending(m).length && !isAdmin() ? '<p class="pending-note">' + memPending(m).length + ' fotoğraf yönetici onayını bekliyor.</p>' : '') +
+        '<div class="mem-foot"><span>' + (who ? esc(who) : '') + '</span><span><button class="link-btn" type="button" data-act="add-photos" data-id="' + esc(m.id) + '">Fotoğraf ekle</button> <button class="link-btn" type="button" data-act="del-mem" data-id="' + esc(m.id) + '">Sil</button></span></div>' +
         '</div></article>';
     }).join('') + '</div>';
     $$('img[data-ph]', box).forEach(function (im) { im.addEventListener('error', function () { im.classList.add('broken'); }); });
@@ -1345,7 +1432,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
   /* ---------- Fotoğraf onayı ---------- */
   function pendingPhotos() {
-    return isAdmin() ? state.memories.filter(function (m) { return ID_RE.test(m.pendingPhotoId || ''); }) : [];
+    return isAdmin() ? state.memories.filter(function (m) { return memPending(m).length > 0; }) : [];
   }
   function renderDot() {
     $('#menuDot').hidden = !(pendingPhotos().length || unreadNotes().length);
@@ -1357,9 +1444,9 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     if (!list.length) { box.hidden = true; box.innerHTML = ''; return; }
     box.hidden = false;
     box.innerHTML = '<div class="panel pend"><p class="k">Onay bekleyen fotoğraflar (' + list.length + ')</p>' + list.map(function (m) {
-      return '<div class="pend-row"><img src="' + blobUrl(m.pendingPhotoId) + '" alt="" loading="lazy">' +
+      return '<div class="pend-row"><img src="' + blobUrl(memPending(m)[0]) + '" alt="" loading="lazy">' +
         '<div class="pend-info"><p class="v" style="overflow-wrap:anywhere">' + esc(m.title) + '</p>' +
-        '<p class="sub">' + esc(authorOf(m.by)) + ' ekledi</p>' +
+        '<p class="sub">' + esc(authorOf(m.by)) + ' ekledi' + (memPending(m).length > 1 ? ' (' + memPending(m).length + ' fotoğraf)' : '') + '</p>' +
         '<div class="actions" style="margin-top:8px"><button class="btn primary" type="button" data-act="approve-photo" data-id="' + esc(m.id) + '">Onayla</button>' +
         '<button class="link-btn" type="button" data-act="reject-photo" data-id="' + esc(m.id) + '">Reddet</button></div></div></div>';
     }).join('') + '</div>';
@@ -1543,11 +1630,13 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
     if (window.paintNav) window.paintNav();
     if (tab === 'mesafe' && window.renderMesafe) setTimeout(window.renderMesafe, 0);
     if (tab === 'harita' && window.renderHarita) setTimeout(window.renderHarita, 0);
+    if (tab === 'cizim' && window.bdShow) setTimeout(window.bdShow, 0);
+    if (tab === 'ilac' && window.renderMeds) setTimeout(window.renderMeds, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
       if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -1678,8 +1767,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       if (!armed(b)) return;
       var m = state.memories.filter(function (x) { return x.id === id; })[0];
       state.db.doc('memories/' + id).delete().then(function () {
-        if (m && ID_RE.test(m.photoId || '') && state.assets) state.assets.delete(m.photoId).catch(function () {});
-        if (m && ID_RE.test(m.pendingPhotoId || '') && state.assets) state.assets.delete(m.pendingPhotoId).catch(function () {});
+        if (m && state.assets) memPics(m).concat(memPending(m)).forEach(function (x) { state.assets.delete(x).catch(function () {}); });
         toast('Anı silindi.');
       }).catch(fail);
     } else if (act === 'del-todo') {
@@ -1692,19 +1780,22 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       $('#memTitle').value = td.text.slice(0, 80);
       $('#memDate').value = ymdString(todayYMD());
       $('#memTitle').focus();
+    } else if (act === 'add-photos') {
+      addPhotoFor = id; addPhotoInput.click();
     } else if (act === 'approve-photo') {
       var pm = state.memories.filter(function (x) { return x.id === id; })[0];
-      if (!pm || !isAdmin() || !ID_RE.test(pm.pendingPhotoId || '')) return;
+      if (!pm || !isAdmin() || !memPending(pm).length) return;
       b.disabled = true;
-      state.db.doc('memories/' + id).update({ photoId: pm.pendingPhotoId, pendingPhotoId: '' })
+      var pend = memPending(pm), prim = ID_RE.test(pm.photoId || '') ? pm.photoId : pend.shift();
+      state.db.doc('memories/' + id).update({ photoId: prim, extraIds: (pm.extraIds || []).concat(pend), pendingPhotoId: '', pendingExtraIds: [] })
         .then(function () { toast('Fotoğraf onaylandı.'); })
         .catch(function (err) { b.disabled = false; fail(err); });
     } else if (act === 'reject-photo') {
       if (!armed(b)) return;
       var pr = state.memories.filter(function (x) { return x.id === id; })[0];
       if (!pr || !isAdmin()) return;
-      state.db.doc('memories/' + id).update({ pendingPhotoId: '' }).then(function () {
-        if (state.assets && ID_RE.test(pr.pendingPhotoId || '')) state.assets.delete(pr.pendingPhotoId).catch(function () {});
+      state.db.doc('memories/' + id).update({ pendingPhotoId: '', pendingExtraIds: [] }).then(function () {
+        if (state.assets) memPending(pr).forEach(function (x) { state.assets.delete(x).catch(function () {}); });
         toast('Fotoğraf reddedildi.');
       }).catch(fail);
     } else if (act === 'del-welcome') {
@@ -1825,23 +1916,20 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     if (!title) { err.textContent = 'Anıya bir başlık yaz.'; return; }
     if (!parseYMD(date)) { err.textContent = 'Bir tarih seç.'; return; }
     var btn = $('#memBtn'); btn.disabled = true; btn.textContent = 'Kaydediliyor…';
-    var photoId = null, pendingId = '', file = $('#memPhoto').files[0];
+    var photoId = null, pendingId = '', extra = [], pendExtra = [], files = Array.prototype.slice.call($('#memPhoto').files);
     try {
-      if (file) {
-        var assets = await getAssets();
-        if (!assets) throw { code: 'not_granted' };
-        var blob = await shrink(file);
-        var up = await assets.upload(blob);
-        if (isAdmin()) photoId = up.id; else pendingId = up.id;
+      if (files.length) {
+        var ids = await uploadMany(files);
+        if (isAdmin()) { photoId = ids[0]; extra = ids.slice(1); } else { pendingId = ids[0]; pendExtra = ids.slice(1); }
       }
     } catch (ex) {
       err.textContent = 'Fotoğraf eklenemedi. ' + uploadErrText(ex);
       btn.disabled = false; btn.textContent = 'Kaydet'; return;
     }
     try {
-      await state.db.collection('memories').add(Object.assign({ title: title, date: date, body: body, place: place, photoId: photoId, pendingPhotoId: pendingId, by: state.me, createdAt: Date.now() }, PIN.sel ? { lat: PIN.sel.lat, lng: PIN.sel.lng } : {}));
+      await state.db.collection('memories').add(Object.assign({ title: title, date: date, body: body, place: place, photoId: photoId, pendingPhotoId: pendingId, extraIds: extra, pendingExtraIds: pendExtra, by: state.me, createdAt: Date.now() }, PIN.sel ? { lat: PIN.sel.lat, lng: PIN.sel.lng } : {}));
       $('#memForm').reset(); $('#memForm').hidden = true;
-      toast(pendingId ? 'Anı eklendi. Fotoğraf yönetici onayından sonra görünür.' : 'Anı eklendi.');
+      toast(pendingId ? 'Anı eklendi. Fotoğraflar yönetici onayından sonra görünür.' : 'Anı eklendi.');
     } catch (ex) { fail(ex); }
     btn.disabled = false; btn.textContent = 'Kaydet';
   });
@@ -1933,7 +2021,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe'], diger: ['muzik', 'uygulama'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac'], diger: ['muzik', 'uygulama'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -2532,12 +2620,13 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     try {
       var s0 = Object.assign({}, state.settings || {}); delete s0.ntfyBase;
       var data = { uygulama: 'Posta Kutumuz', yedekTarihi: new Date().toISOString(), ayarlar: s0, anilar: state.memories, yapilacaklar: state.todos, sarkilar: state.tracks, mesajlar: state.notes,
+        cizim: BD.strokes.length + ' çizgi', ilaclar: MED.meds,
         takvim: X.events, dilekler: X.wishes, mektuplar: X.letters, cevaplar: X.answers, ruhHali: X.moods, hediyeler: X.items, albumler: X.albums, girisFotograflari: state.welcome, gorusme: X.meet };
       var files = {};
       (function walk(o) {
         if (!o || typeof o !== 'object') return;
         if (Array.isArray(o)) { o.forEach(walk); return; }
-        Object.keys(o).forEach(function (k) { var v = o[k]; if (typeof v === 'string' && ID_RE.test(v) && /^(photoId|pendingPhotoId|assetId)$/.test(k)) files[v] = blobUrl(v); else walk(v); });
+        Object.keys(o).forEach(function (k) { var v = o[k]; if ((k === 'extraIds' || k === 'pendingExtraIds') && Array.isArray(v)) { v.forEach(function (x) { if (ID_RE.test(x || '')) files[x] = blobUrl(x); }); return; } if (typeof v === 'string' && ID_RE.test(v) && /^(photoId|pendingPhotoId|assetId)$/.test(k)) files[v] = blobUrl(v); else walk(v); });
       })(data);
       (X.albums || []).forEach(function (al) { (al.photos || []).forEach(function (ph) { if (ph && ID_RE.test(ph.id || '')) files[ph.id] = blobUrl(ph.id); }); });
       data.dosyalar = files;
@@ -2550,6 +2639,298 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       st.textContent = 'Yedek indirildi (' + Object.keys(files).length + ' dosya bağlantısı).';
     } catch (e) { st.textContent = 'Yedek alınamadı. Sayfayı yenileyip tekrar dene.'; }
   });
+
+  /* ---------- Çoklu fotoğraf ---------- */
+  function memPics(m) { var a = []; if (ID_RE.test(m.photoId || '')) a.push(m.photoId); (m.extraIds || []).forEach(function (x) { if (ID_RE.test(x || '')) a.push(x); }); return a; }
+  function memPending(m) { var a = []; if (ID_RE.test(m.pendingPhotoId || '')) a.push(m.pendingPhotoId); (m.pendingExtraIds || []).forEach(function (x) { if (ID_RE.test(x || '')) a.push(x); }); return a; }
+  var LB = { list: [], i: 0, cap: '' };
+  function lbShow() {
+    var lb = $('#lb'); if (!LB.list.length) return;
+    $('#lbImg').src = blobUrl(LB.list[LB.i]);
+    $('#lbCap').textContent = (LB.cap ? LB.cap + ' · ' : '') + (LB.i + 1) + ' / ' + LB.list.length;
+    $('#lbPrev').hidden = $('#lbNext').hidden = LB.list.length < 2; lb.hidden = false;
+  }
+  function lbOpen(list, i, cap) { LB.list = list; LB.i = i; LB.cap = cap || ''; lbShow(); }
+  function lbStep(d) { if (!LB.list.length) return; LB.i = (LB.i + d + LB.list.length) % LB.list.length; lbShow(); }
+  $('#lbX').addEventListener('click', function () { $('#lb').hidden = true; });
+  $('#lbPrev').addEventListener('click', function () { lbStep(-1); });
+  $('#lbNext').addEventListener('click', function () { lbStep(1); });
+  $('#lb').addEventListener('click', function (e) { if (e.target === this) this.hidden = true; });
+  document.addEventListener('keydown', function (e) { if ($('#lb').hidden) return; if (e.key === 'Escape') $('#lb').hidden = true; else if (e.key === 'ArrowLeft') lbStep(-1); else if (e.key === 'ArrowRight') lbStep(1); });
+  (function () { var x0 = null; var lb = $('#lb');
+    lb.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) lbStep(dx < 0 ? 1 : -1); }, { passive: true });
+  })();
+  $('#memList').addEventListener('click', function (e) {
+    var im = e.target.closest('img[data-lb]'); if (!im) return;
+    var m = state.memories.filter(function (x) { return x.id === im.dataset.lb; })[0]; if (!m) return;
+    lbOpen(memPics(m), +im.dataset.i || 0, m.title);
+  });
+  async function uploadMany(files) {
+    var assets = await getAssets(); if (!assets) throw { code: 'not_granted' };
+    var ids = [];
+    for (var i = 0; i < files.length; i++) { var blob = await shrink(files[i]); var up = await assets.upload(blob); ids.push(up.id); }
+    return ids;
+  }
+  var addPhotoInput = document.createElement('input');
+  addPhotoInput.type = 'file'; addPhotoInput.accept = 'image/jpeg,image/png,image/webp,image/gif'; addPhotoInput.multiple = true; addPhotoInput.hidden = true; document.body.appendChild(addPhotoInput);
+  var addPhotoFor = '';
+  addPhotoInput.addEventListener('change', async function () {
+    var files = Array.prototype.slice.call(addPhotoInput.files), id = addPhotoFor; addPhotoInput.value = '';
+    var m = state.memories.filter(function (x) { return x.id === id; })[0]; if (!m || !files.length) return;
+    toast('Fotoğraflar yükleniyor…');
+    try {
+      var ids = await uploadMany(files), patch = {};
+      if (isAdmin()) {
+        if (!ID_RE.test(m.photoId || '')) { patch.photoId = ids[0]; ids = ids.slice(1); }
+        patch.extraIds = (m.extraIds || []).concat(ids);
+      } else {
+        if (!ID_RE.test(m.photoId || '') && !ID_RE.test(m.pendingPhotoId || '')) { patch.pendingPhotoId = ids[0]; ids = ids.slice(1); }
+        patch.pendingExtraIds = (m.pendingExtraIds || []).concat(ids);
+      }
+      await state.db.doc('memories/' + id).update(patch);
+      toast(isAdmin() ? 'Fotoğraflar eklendi.' : 'Fotoğraflar eklendi. Yönetici onayından sonra görünür.');
+    } catch (ex) { toast('Fotoğraf eklenemedi. ' + uploadErrText(ex)); }
+  });
+
+  /* ---------- Çizim tahtası ---------- */
+  var BD = { strokes: [], local: [], cur: null, color: '#1c2230', w: 7, erase: false, bound: false };
+  var BD_COLORS = ['#1c2230', '#c23f2a', '#285a9c', '#1d7a4a', '#e0a21b', '#8a3fb0', '#e873a8', '#8b5a2b'];
+  function bdCanvas() { return $('#bd'); }
+  function bdFit() {
+    var c = bdCanvas(), r = c.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2), w = Math.max(200, Math.round(r.width * dpr));
+    if (c.width !== w) { c.width = w; c.height = w; }
+  }
+  function bdStroke(ctx, st, k) {
+    var p = st.p; if (!p || p.length < 2) return;
+    ctx.strokeStyle = st.c; ctx.fillStyle = st.c; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = st.w * k;
+    if (p.length < 4) { ctx.beginPath(); ctx.arc(p[0] * k, p[1] * k, st.w * k / 2, 0, 6.2832); ctx.fill(); return; }
+    ctx.beginPath(); ctx.moveTo(p[0] * k, p[1] * k);
+    for (var i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * k, p[i + 1] * k);
+    ctx.stroke();
+  }
+  function bdRedraw() {
+    var c = bdCanvas(); if (!c || $('#p-cizim').hidden) return;
+    bdFit(); var ctx = c.getContext('2d'), k = c.width / 1000;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+    BD.strokes.forEach(function (st) { bdStroke(ctx, st, k); });
+    BD.local.forEach(function (st) { bdStroke(ctx, st, k); });
+    if (BD.cur) bdStroke(ctx, BD.cur, k);
+  }
+  function bdTools() {
+    var h = BD_COLORS.map(function (c) { return '<button class="bd-sw' + (!BD.erase && BD.color === c ? ' on' : '') + '" type="button" data-bdc="' + c + '" style="background:' + c + '" aria-label="Renk"></button>'; }).join('');
+    h += [3, 7, 14].map(function (w) { return '<button class="bd-w' + (BD.w === w ? ' on' : '') + '" type="button" data-bdw="' + w + '" aria-label="Kalınlık"><i style="height:' + Math.max(2, w / 1.6) + 'px"></i></button>'; }).join('');
+    h += '<button class="btn' + (BD.erase ? ' on' : '') + '" type="button" data-bdt="erase">Silgi</button><button class="btn" type="button" data-bdt="undo">Geri al</button><button class="btn" type="button" data-bdt="save">Kaydet</button><button class="btn" type="button" data-bdt="clear">Temizle</button>';
+    $('#bdTools').innerHTML = h;
+  }
+  function bdPos(e) { var c = bdCanvas(), r = c.getBoundingClientRect(); return [Math.max(0, Math.min(1000, Math.round((e.clientX - r.left) / r.width * 1000))), Math.max(0, Math.min(1000, Math.round((e.clientY - r.top) / r.height * 1000)))]; }
+  function bdBind() {
+    if (BD.bound) return; BD.bound = true;
+    var c = bdCanvas();
+    c.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); try { c.setPointerCapture(e.pointerId); } catch (x) {}
+      var pt = bdPos(e); BD.cur = { c: BD.erase ? '#ffffff' : BD.color, w: BD.erase ? BD.w * 3 : BD.w, p: pt.slice(), by: state.me }; bdRedraw();
+    });
+    c.addEventListener('pointermove', function (e) {
+      if (!BD.cur) return; e.preventDefault();
+      var evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e]; if (!evs.length) evs = [e];
+      evs.forEach(function (ev) {
+        var pt = bdPos(ev), p = BD.cur.p, lx = p[p.length - 2], ly = p[p.length - 1];
+        if (Math.abs(pt[0] - lx) + Math.abs(pt[1] - ly) >= 3 && p.length < 1400) { p.push(pt[0], pt[1]); }
+      });
+      bdRedraw();
+    });
+    function end(e) {
+      if (!BD.cur) return; var st = BD.cur; BD.cur = null;
+      if (!state.db) return;
+      st.at = Date.now(); BD.local.push(st); bdRedraw();
+      state.db.collection('board').add({ c: st.c, w: st.w, p: st.p, by: state.me, at: st.at })
+        .catch(fail).then(function () { BD.local = BD.local.filter(function (x) { return x !== st; }); bdRedraw(); });
+    }
+    c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
+    $('#bdTools').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.bdc) { BD.color = b.dataset.bdc; BD.erase = false; bdTools(); }
+      else if (b.dataset.bdw) { BD.w = +b.dataset.bdw; bdTools(); }
+      else if (b.dataset.bdt === 'erase') { BD.erase = !BD.erase; bdTools(); }
+      else if (b.dataset.bdt === 'undo') {
+        var mine = BD.strokes.filter(function (x) { return x.by === state.me; }).sort(function (a, b2) { return (b2.at || 0) - (a.at || 0); })[0];
+        if (mine) state.db.doc('board/' + mine.id).delete().catch(fail); else toast('Geri alınacak çizgin yok.');
+      } else if (b.dataset.bdt === 'clear') {
+        if (!armed(b)) return;
+        Promise.all(BD.strokes.map(function (x) { return state.db.doc('board/' + x.id).delete(); })).then(function () { toast('Tahta temizlendi.'); }).catch(fail);
+      } else if (b.dataset.bdt === 'save') {
+        bdCanvas().toBlob(function (blob) {
+          if (!blob) return; var url = URL.createObjectURL(blob), a = document.createElement('a');
+          a.href = url; a.download = 'cizim-' + ymdString(todayYMD()) + '.png'; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+        });
+      }
+    });
+    window.addEventListener('resize', bdRedraw);
+  }
+  window.bdShow = function () { bdBind(); bdTools(); bdRedraw(); };
+
+  /* ---------- İlaç hatırlatıcı ---------- */
+  var MED = { meds: [], log: {}, times: [], editing: false };
+  function ymd8(d) { d = d || new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
+  function doseKey(m, day, t) { return m.id + '_' + day + '_' + t.replace(':', ''); }
+  function doseDate(day, t) { return new Date(+day.slice(0, 4), +day.slice(4, 6) - 1, +day.slice(6, 8), +t.slice(0, 2), +t.slice(3, 5), 0); }
+  function todayDoses(m) { var day = ymd8(); return (m.times || []).slice().sort().map(function (t) { var k = doseKey(m, day, t); return { med: m, t: t, key: k, at: doseDate(day, t), log: MED.log[k] || null }; }); }
+  function medWhoName(m) { return names()[m.who] || ''; }
+  function renderMeds() {
+    var box = $('#medList'); if (!box) return;
+    var sel = $('#medWho'), nm = names(); if (sel && !sel.options.length) { sel.innerHTML = '<option value="A">' + esc(nm.A) + '</option><option value="B">' + esc(nm.B) + '</option>'; sel.value = state.me || 'A'; }
+    $('#medTimes').innerHTML = MED.times.map(function (t, i) { return '<button type="button" data-medt="' + i + '" aria-label="Saati kaldır">' + esc(t) + ' ×</button>'; }).join('') || '<span class="muted small">Henüz saat eklenmedi.</span>';
+    $('#medCount').textContent = MED.meds.length ? MED.meds.length + ' ilaç' : '';
+    renderMedBox();
+    if ($('#p-ilac').hidden) return;
+    if (!MED.meds.length) { box.innerHTML = '<div class="empty" style="margin-top:16px"><p class="t">Henüz ilaç yok</p><p>İlaç, vitamin ya da düzenli yapmak istediğiniz bir şey ekleyin. Saati gelince hatırlatılır.</p></div>'; return; }
+    var now = Date.now();
+    box.innerHTML = MED.meds.slice().sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); }).map(function (m) {
+      var mine = m.who === state.me;
+      return '<div class="med"><div><h3>' + esc(m.name) + '</h3><p class="sub">' + esc(medWhoName(m)) + (m.dose ? ' · ' + esc(m.dose) : '') + '</p></div>' +
+        todayDoses(m).map(function (d) {
+          var late = !d.log && d.at.getTime() <= now;
+          return '<div class="dose' + (late ? ' late' : '') + '"><span class="tm">' + esc(d.t) + '</span>' +
+            (d.log ? '<span class="ok">Alındı · ' + esc(new Date(d.log.at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })) + '</span>'
+              : '<span>' + '<button class="btn' + (late ? ' primary' : '') + '" type="button" data-medtake="' + esc(d.key) + '" data-med="' + esc(m.id) + '" data-t="' + esc(d.t) + '">Aldım</button>' +
+                (!mine && late ? ' <button class="link-btn" type="button" data-medremind="' + esc(m.id) + '" data-t="' + esc(d.t) + '">Hatırlat</button>' : '') + '</span>') + '</div>';
+        }).join('') +
+        '<div><button class="link-btn" type="button" data-meddel="' + esc(m.id) + '">Sil</button></div></div>';
+    }).join('');
+  }
+  window.renderMeds = renderMeds;
+  function renderMedBox() {
+    var box = $('#medBox'); if (!box || !state.me) return;
+    var now = Date.now(), due = [];
+    MED.meds.forEach(function (m) { todayDoses(m).forEach(function (d) { if (!d.log && d.at.getTime() <= now) due.push(d); }); });
+    if (!due.length) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = '<p class="k">Bekleyen ilaçlar</p>' + due.map(function (d) {
+      return '<div class="dose late"><span><span class="tm">' + esc(d.t) + '</span> ' + esc(d.med.name) + ' <span class="muted small">· ' + esc(medWhoName(d.med)) + '</span></span><button class="btn primary" type="button" data-medtake="' + esc(d.key) + '" data-med="' + esc(d.med.id) + '" data-t="' + esc(d.t) + '">Aldım</button></div>';
+    }).join('');
+  }
+  function medTake(key, medId, t) {
+    var m = MED.meds.filter(function (x) { return x.id === medId; })[0]; if (!m) return;
+    state.db.doc('medlog/' + key).set({ med: medId, t: t, day: ymd8(), by: state.me, at: Date.now() })
+      .then(function () { if (m.notify && m.who === state.me) sendNote('İlacımı aldım: ' + m.name); }).catch(fail);
+  }
+  function onMedClick(e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.medtake) medTake(b.dataset.medtake, b.dataset.med, b.dataset.t);
+    else if (b.dataset.medremind) { var m = MED.meds.filter(function (x) { return x.id === b.dataset.medremind; })[0]; if (m) sendNote('İlacını aldın mı? ' + m.name + ' (' + b.dataset.t + ')'); }
+    else if (b.dataset.meddel) { if (!armed(b)) return; state.db.doc('meds/' + b.dataset.meddel).delete().catch(fail); }
+    else if (b.dataset.medt != null) { MED.times.splice(+b.dataset.medt, 1); renderMeds(); }
+  }
+  $('#p-ilac').addEventListener('click', onMedClick); $('#medBox').addEventListener('click', onMedClick);
+  $('#medAddTime').addEventListener('click', function () {
+    var t = $('#medTime').value; if (!/^\d\d:\d\d$/.test(t)) return;
+    if (MED.times.indexOf(t) < 0 && MED.times.length < 8) MED.times.push(t); MED.times.sort(); renderMeds();
+  });
+  $('#medForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = $('#medName').value.trim(), err = $('#medErr'); err.textContent = '';
+    if (!name) { err.textContent = 'İlacın adını yaz.'; return; }
+    if (!MED.times.length) { var t0 = $('#medTime').value; if (/^\d\d:\d\d$/.test(t0)) MED.times.push(t0); }
+    if (!MED.times.length) { err.textContent = 'En az bir saat ekle.'; return; }
+    state.db.collection('meds').add({ name: name.slice(0, 60), dose: $('#medDose').value.trim().slice(0, 60), who: $('#medWho').value, times: MED.times.slice(), notify: $('#medNotify').checked, by: state.me, createdAt: Date.now() })
+      .then(function () { $('#medForm').reset(); MED.times = []; $('#medWho').value = state.me; renderMeds(); toast('İlaç eklendi.'); medSchedule(); }).catch(fail);
+  });
+  // Site açıkken hatırlatma
+  function medTick() {
+    if (!state.me || !MED.meds.length) return;
+    var now = Date.now();
+    MED.meds.forEach(function (m) {
+      if (m.who !== state.me) return;
+      todayDoses(m).forEach(function (d) {
+        var dt = now - d.at.getTime();
+        if (d.log || dt < 0 || dt > 90 * 60000) return;
+        var k = 'posta:medal:' + d.key; if (LS.get(k)) return; LS.set(k, '1');
+        var txt = 'İlaç zamanı: ' + m.name + (m.dose ? ' (' + m.dose + ')' : '');
+        toast(txt);
+        if (document.hidden && ('Notification' in window) && Notification.permission === 'granted') { try { new Notification('İlaç zamanı', { body: m.name + (m.dose ? ' · ' + m.dose : ''), icon: 'icon-192.png' }); } catch (x) {} }
+      });
+    });
+    renderMedBox();
+  }
+  setInterval(medTick, 30000);
+  // Telefon bildirimi: önümüzdeki 36 saatin dozlarını ntfy'ye zamanlı gönder
+  var medSchedBusy = false;
+  function medSchedule() {
+    if (medSchedBusy || !state.me || !pushBase() || !MED.meds.length) return;
+    medSchedBusy = true;
+    var keys = Object.assign({}, (LOC.medsch && LOC.medsch.keys) || {}), now = Date.now(), jobs = [], changed = false;
+    Object.keys(keys).forEach(function (k) { if (now - keys[k] > 3 * 86400000) { delete keys[k]; changed = true; } });
+    for (var dd = 0; dd < 2; dd++) {
+      var d0 = new Date(now + dd * 86400000), day = ymd8(d0);
+      MED.meds.forEach(function (m) {
+        (m.times || []).forEach(function (t) {
+          var at = doseDate(day, t).getTime(), k = doseKey(m, day, t);
+          if (at < now + 60000 || at > now + 36 * 3600000 || keys[k]) return;
+          jobs.push({ k: k, at: at, m: m, t: t });
+        });
+      });
+    }
+    var done = Promise.resolve();
+    jobs.forEach(function (j) {
+      done = done.then(function () {
+        return fetch('https://ntfy.sh', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: pushTopic(j.m.who), title: 'İlaç zamanı', message: j.m.name + (j.m.dose ? ' · ' + j.m.dose : '') + ' (' + j.t + ')', delay: String(Math.round(j.at / 1000)), tags: ['pill'], click: location.href.split('#')[0].split('?')[0] }) })
+          .then(function (r) { if (r.ok) { keys[j.k] = now; changed = true; } }).catch(function () {});
+      });
+    });
+    done.then(function () { if (changed) return state.db.doc('seen/medsch').set({ keys: keys }); }).catch(function () {}).then(function () { medSchedBusy = false; });
+  }
+  setInterval(medSchedule, 30 * 60000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) medSchedule(); });
+
+  /* ---------- Parmak izi / yüz tanıma kilidi ---------- */
+  var BIO = { locked: false, hiddenAt: 0, busy: false };
+  function b64u(buf) { var s = ''; new Uint8Array(buf).forEach(function (c) { s += String.fromCharCode(c); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function unb64u(t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+  function bioOn() { return !!LS.get('posta:bio'); }
+  function bioSupported() { return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create); }
+  function bioPaint() {
+    var t = $('#bioToggle'); if (!t) return;
+    t.textContent = bioOn() ? 'Kilidi kapat' : 'Etkinleştir';
+    $('#bioSt').textContent = !bioSupported() ? 'Bu tarayıcı parmak izi ya da yüz tanımayı desteklemiyor.' : (bioOn() ? 'Bu cihazda kilit açık.' : '');
+  }
+  function bioShow(auto) {
+    if (!bioOn()) { $('#bioLock').hidden = true; return; }
+    BIO.locked = true; $('#bioLock').hidden = false; $('#bioMsg').textContent = 'Açmak için parmak izini ya da yüzünü kullan.';
+    if (auto) bioUnlock();
+  }
+  function bioUnlock() {
+    if (BIO.busy || !bioOn()) return; BIO.busy = true;
+    var ch = crypto.getRandomValues(new Uint8Array(32));
+    navigator.credentials.get({ publicKey: { challenge: ch, allowCredentials: [{ type: 'public-key', id: unb64u(LS.get('posta:bio')) }], userVerification: 'required', timeout: 60000 } })
+      .then(function () { BIO.locked = false; $('#bioLock').hidden = true; })
+      .catch(function () { $('#bioMsg').textContent = 'Doğrulanamadı. Tekrar dene ya da şifreyle gir.'; })
+      .then(function () { BIO.busy = false; });
+  }
+  window.bioAuth = function (u, ev) { if (!bioOn()) { $('#bioLock').hidden = true; return; } if (u) { if (ev === 'SIGNED_IN' && BIO.fresh) { BIO.fresh = false; BIO.locked = false; $('#bioLock').hidden = true; } else if (BIO.locked) bioShow(true); } else { $('#bioLock').hidden = true; } };
+  document.addEventListener('submit', function () { if (!state.authUser) BIO.fresh = true; }, true);
+  $('#bioGo').addEventListener('click', bioUnlock);
+  $('#bioPw').addEventListener('click', function () { LS.set('posta:bio', ''); BIO.locked = false; $('#bioLock').hidden = true; doLogout(); });
+  document.addEventListener('visibilitychange', function () {
+    if (!bioOn()) return;
+    if (document.hidden) BIO.hiddenAt = Date.now();
+    else if (BIO.hiddenAt && Date.now() - BIO.hiddenAt > 60000 && state.authUser) { BIO.hiddenAt = 0; bioShow(true); }
+  });
+  $('#bioToggle').addEventListener('click', function () {
+    var st = $('#bioSt');
+    if (bioOn()) { LS.set('posta:bio', ''); BIO.locked = false; bioPaint(); toast('Kilit kapatıldı.'); return; }
+    if (!bioSupported()) { bioPaint(); return; }
+    st.textContent = 'Telefonun doğrulama ekranını bekliyorum…';
+    var uid = crypto.getRandomValues(new Uint8Array(16)), ch = crypto.getRandomValues(new Uint8Array(32));
+    navigator.credentials.create({ publicKey: { challenge: ch, rp: { name: 'Posta Kutumuz', id: location.hostname }, user: { id: uid, name: state.email || 'kullanici', displayName: authorOf(state.me) || 'Posta Kutumuz' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }], authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none' } })
+      .then(function (cred) { LS.set('posta:bio', b64u(cred.rawId)); BIO.locked = false; bioPaint(); toast('Kilit etkinleştirildi.'); })
+      .catch(function (ex) { st.textContent = (ex && ex.name === 'NotAllowedError') ? 'Doğrulama iptal edildi ya da bu telefonda ekran kilidi (parmak izi, yüz ya da PIN) tanımlı değil.' : 'Etkinleştirilemedi.'; });
+  });
+  if (bioOn()) { BIO.locked = true; $('#bioLock').hidden = false; }
+  bioPaint();
 
   function renderExtras() {
     renderExtras2(); renderCalendar(); renderUpcomingHome(); renderWishes(); renderLetters(); renderGifts(); renderDaily(); renderOzet();
@@ -2844,6 +3225,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     var membersUnsub = null;
     auth.onChange(function (u, ev) {
       if (ev === 'PASSWORD_RECOVERY') state.recovery = true;
+      if (window.bioAuth) window.bioAuth(u, ev);
       state.authUser = u; state.viewer = { isOwner: false, name: '', email: u ? u.email : '', avatar: '', key: 'u' };
       if (membersUnsub) { membersUnsub(); membersUnsub = null; }
       state.members = undefined;
@@ -2890,13 +3272,24 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       state.notesReady = true;
       if (inMain()) renderNotes();
     }, onErr);
+    db.collection('board').onSnapshot(function (snap) {
+      BD.strokes = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).sort(function (a, b) { return (a.at || 0) - (b.at || 0); });
+      if (!$('#p-cizim').hidden) bdRedraw();
+    }, function () {});
+    db.collection('meds').onSnapshot(function (snap) {
+      MED.meds = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      renderMeds(); medTick(); medSchedule();
+    }, function () {});
+    db.collection('medlog').onSnapshot(function (snap) {
+      var o = {}; snap.docs.forEach(function (d) { o[d.id] = d.data(); }); MED.log = o; renderMeds();
+    }, function () {});
     subX('events', 'events'); subX('wishes', 'wishes'); subX('letters', 'letters'); subX('answers', 'answers'); subX('moods', 'moods'); subX('items', 'items'); subX('albums', 'albums');
     db.doc('app/meet').onSnapshot(function (snap) { X.meet = snap.exists ? snap.data() : null; if (inMain()) renderMeet(); }, function () {});
     db.collection('seen').onSnapshot(function (snap) {
       var s = {};
-      var lc = {}, sc = {}, nt = '', hm = {};
-      snap.docs.forEach(function (d) { if (d.id === 'locA' || d.id === 'locB') lc[d.id.slice(3)] = d.data() || null; else if (d.id === 'stA' || d.id === 'stB') sc[d.id.slice(2)] = d.data() || null; else if (d.id === 'ntfy') { nt = (d.data() || {}).base || ''; } else if (d.id === 'home') { hm = d.data() || {}; } else s[d.id] = (d.data() || {}).at || 0; });
-      state.seen = s; LOC.docs = lc; LOC.st = sc; LOC.ntfy = nt; LOC.home = hm; resumeLoc(); renderStatus(); renderPush(); if (inMain() && !$('#p-mesafe').hidden) { renderMesafe(); renderWx(); }
+      var lc = {}, sc = {}, nt = '', hm = {}, ms = {};
+      snap.docs.forEach(function (d) { if (d.id === 'locA' || d.id === 'locB') lc[d.id.slice(3)] = d.data() || null; else if (d.id === 'stA' || d.id === 'stB') sc[d.id.slice(2)] = d.data() || null; else if (d.id === 'ntfy') { nt = (d.data() || {}).base || ''; } else if (d.id === 'home') { hm = d.data() || {}; } else if (d.id === 'medsch') { ms = d.data() || {}; } else s[d.id] = (d.data() || {}).at || 0; });
+      state.seen = s; LOC.docs = lc; LOC.st = sc; LOC.ntfy = nt; LOC.home = hm; LOC.medsch = ms; resumeLoc(); renderStatus(); renderPush(); if (inMain() && !$('#p-mesafe').hidden) { renderMesafe(); renderWx(); }
       if (inMain()) renderNotes();
     }, onErr);
     };
