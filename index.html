@@ -2929,7 +2929,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
   function espaPaint() {
     var el = $('#espaLog'); if (!el) return;
-    if (!ESPA.msgs.length) { el.innerHTML = '<div class="espa-empty"><p><b>ESPA V1.0</b></p><p>Merhaba, ben ESPA. Bize özel yapay zekâ asistanınım. Ne konuşalım?</p></div>'; }
+    if (!ESPA.msgs.length) { el.innerHTML = '<div class="espa-empty"><p><b>ESPA V1.0</b></p><p>Merhaba, ben ESPA. ' + esc(names().A || 'Eren') + '’in ' + esc(names().B || 'Elif') + ' için özel tasarladığı yapay zekâyım. Ne konuşalım?</p></div>'; }
     else el.innerHTML = ESPA.msgs.map(function (m) { return '<div class="espa-b ' + (m.role === 'user' ? 'me' : m.role === 'err' ? 'err' : 'ai') + '">' + esc(m.content) + '</div>'; }).join('') + (ESPA.busy ? '<div class="espa-b ai">…</div>' : '');
     el.scrollTop = el.scrollHeight;
     $('#espaForm').hidden = ESPA.readonly;
@@ -2964,7 +2964,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     var n = names(), id = ESPA.id;
     try {
       if (!fn) throw { code: 'network' };
-      var r = await fn.call('espa', { chatId: id, messages: hist, ctx: { nameA: n.A, nameB: n.B, me: authorOf(state.me), days: daysTogether() } });
+      var r = await fn.call('super-processor', { chatId: id, messages: hist, ctx: { nameA: n.A, nameB: n.B, me: authorOf(state.me), days: daysTogether() } });
       if (!r || !r.reply) throw { code: 'upstream' };
       if (id === ESPA.id) ESPA.msgs.push({ role: 'assistant', content: String(r.reply) });
     } catch (e) {
