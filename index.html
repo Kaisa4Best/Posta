@@ -553,6 +553,11 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 .hm-keys button{width:34px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:600 15px var(--body);cursor:pointer}
 .hm-keys button:disabled{opacity:.35}
 .pin-acts{display:flex;gap:8px;flex-wrap:wrap}
+
+.sw-row{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 10px}
+.sw{width:38px;height:38px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1px var(--line);cursor:pointer}
+.sw[aria-pressed=true]{border-color:var(--ink)}
+#thFont{width:100%;font:inherit;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 </style>
 
 <style id="glass">
@@ -1136,6 +1141,18 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <p class="muted small">Bu telefonda siteyi açarken kimlik doğrulaması ister. Başka biri telefonunu eline alsa bile siteye giremez. Yalnızca bu cihaz için geçerlidir.</p>
       <div class="actions"><button class="btn" type="button" id="bioToggle">Etkinleştir</button></div>
       <p class="muted small" id="bioSt" role="status"></p>
+    </div>
+    <div class="field">
+      <label>Görünüm (yalnızca bu telefonda)</label>
+      <div class="sw-row" id="thSw"></div>
+      <select id="thFont" aria-label="Yazı tipi"><option value="">Varsayılan yazı</option><option value="serif">Klasik (serif)</option><option value="round">Yuvarlak</option><option value="mono">Daktilo</option></select>
+    </div>
+    <div class="field">
+      <label>Günaydın ve iyi geceler hatırlatması</label>
+      <p class="muted small" id="grDesc"></p>
+      <div class="add-row"><label class="check" style="flex:1;justify-content:flex-start;gap:10px"><input type="checkbox" id="grMorOn"> Günaydın</label><input type="time" id="grMor" value="08:00" aria-label="Günaydın saati"></div>
+      <div class="add-row" style="margin-top:6px"><label class="check" style="flex:1;justify-content:flex-start;gap:10px"><input type="checkbox" id="grNigOn"> İyi geceler</label><input type="time" id="grNig" value="23:00" aria-label="İyi geceler saati"></div>
+      <p class="muted small" id="grSt" role="status"></p>
     </div>
     <div class="field">
       <label>Yedek</label>
@@ -3029,6 +3046,76 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) medSchedule(); });
 
 
+
+  /* ---------- Tema (renk ve yazı) ---------- */
+  var THEMES = { red: ['Kırmızı', '#c23f2a', '#f0735c'], pink: ['Pembe', '#c2185b', '#f06292'], purple: ['Mor', '#7b3fb5', '#b794f0'], blue: ['Mavi', '#2563b8', '#6fa0e0'], green: ['Yeşil', '#2e7d4f', '#5fcf93'], orange: ['Turuncu', '#c25a00', '#ffa04d'] };
+  var FONTS = { serif: "Georgia, 'Times New Roman', serif", round: "ui-rounded, 'SF Pro Rounded', Nunito, system-ui, sans-serif", mono: "ui-monospace, Menlo, Consolas, monospace" };
+  function themeGet() { try { return JSON.parse(LS.get('posta:theme') || '{}') || {}; } catch (e) { return {}; } }
+  function themeApply() {
+    var t = themeGet(), st = document.getElementById('themeStyle');
+    if (!st) { st = document.createElement('style'); st.id = 'themeStyle'; document.head.appendChild(st); }
+    var css = '', c = THEMES[t.c];
+    if (c && t.c !== 'red') css += ':root{--red:' + c[1] + '}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--red:' + c[2] + '}}:root[data-theme="dark"]{--red:' + c[2] + '}';
+    if (FONTS[t.f]) css += ':root{--display:' + FONTS[t.f] + ';--body:' + FONTS[t.f] + '}';
+    st.textContent = css;
+  }
+  function themePaint() {
+    var t = themeGet(), box = $('#thSw'); if (!box) return;
+    box.innerHTML = Object.keys(THEMES).map(function (k) { return '<button type="button" class="sw" data-th="' + k + '" style="background:' + THEMES[k][1] + '" aria-label="' + THEMES[k][0] + '" aria-pressed="' + ((t.c || 'red') === k) + '"></button>'; }).join('');
+    $('#thFont').value = FONTS[t.f] ? t.f : '';
+  }
+  $('#thSw').addEventListener('click', function (e) { var b = e.target.closest('[data-th]'); if (!b) return; var t = themeGet(); t.c = b.dataset.th; LS.set('posta:theme', JSON.stringify(t)); themeApply(); themePaint(); });
+  $('#thFont').addEventListener('change', function () { var t = themeGet(); t.f = this.value; LS.set('posta:theme', JSON.stringify(t)); themeApply(); });
+  themeApply();
+
+  /* ---------- Günaydın / iyi geceler hatırlatması ---------- */
+  var GR = { doc: null, busy: false };
+  function grCfg() { var d = GR.doc || {}; return { morOn: !!d.morOn, nigOn: !!d.nigOn, mor: d.mor || '08:00', nig: d.nig || '23:00', keys: d.keys || {} }; }
+  function grWho() { var n = names(); return state.me === 'B' ? { to: 'Kocana', nm: n.A } : { to: 'Eşine', nm: n.B }; }
+  function grPaint() {
+    var c = grCfg(); if (!$('#grMorOn')) return;
+    if (document.activeElement && (document.activeElement.id === 'grMor' || document.activeElement.id === 'grNig')) return;
+    $('#grMorOn').checked = c.morOn; $('#grNigOn').checked = c.nigOn; $('#grMor').value = c.mor; $('#grNig').value = c.nig;
+    var w = grWho();
+    $('#grDesc').textContent = 'Seçtiğin saatte telefonuna “' + w.to + (w.nm ? ' (' + w.nm + ')' : '') + ' günaydın / iyi geceler demeyi unutma” bildirimi gelir.';
+    $('#grSt').textContent = pushBase() ? 'Değişiklikler sonraki günden itibaren geçerli olur. Bildirimler için siteyi günde en az bir kez açman gerekir.' : 'Önce Mesajlar sayfasındaki telefon bildirimini aç.';
+  }
+  function grSave(patch) {
+    var c = Object.assign(grCfg(), patch); GR.doc = c;
+    state.db.doc('seen/gm' + state.me).set(c).then(grSchedule).catch(fail);
+  }
+  ['grMorOn', 'grNigOn'].forEach(function (id) { $('#' + id).addEventListener('change', function () { var o = {}; o[id === 'grMorOn' ? 'morOn' : 'nigOn'] = this.checked; grSave(o); }); });
+  ['grMor', 'grNig'].forEach(function (id) { $('#' + id).addEventListener('change', function () { if (!/^\d{2}:\d{2}$/.test(this.value)) return; var o = {}; o[id === 'grMor' ? 'mor' : 'nig'] = this.value; grSave(o); }); });
+  $('#btnSettings').addEventListener('click', function () { themePaint(); grPaint(); });
+  var grBusy = false;
+  function grSchedule() {
+    if (grBusy || !state.me || !pushBase() || !state.db) return;
+    var c = grCfg(); if (!c.morOn && !c.nigOn) return;
+    grBusy = true;
+    var keys = Object.assign({}, c.keys), now = Date.now(), jobs = [], changed = false, w = grWho();
+    Object.keys(keys).forEach(function (k) { if (now - keys[k] > 3 * 86400000) { delete keys[k]; changed = true; } });
+    for (var dd = 0; dd < 2; dd++) {
+      [['mor', c.morOn, c.mor, 'Günaydın hatırlatması', 'günaydın'], ['nig', c.nigOn, c.nig, 'İyi geceler hatırlatması', 'iyi geceler']].forEach(function (x) {
+        if (!x[1]) return;
+        var hm = x[2].split(':'), d0 = new Date(); d0.setDate(d0.getDate() + dd); d0.setHours(+hm[0], +hm[1], 0, 0);
+        var at = d0.getTime(), k = 'g_' + x[0] + '_' + ymd8(d0) + '_' + x[2].replace(':', '');
+        if (at < now + 60000 || at > now + 36 * 3600000 || keys[k]) return;
+        jobs.push({ k: k, at: at, title: x[3], msg: w.to + (w.nm ? ' (' + w.nm + ')' : '') + ' ' + x[4] + ' demeyi unutma 💗' });
+      });
+    }
+    var done = Promise.resolve();
+    jobs.forEach(function (j) {
+      done = done.then(function () {
+        return fetch('https://ntfy.sh', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: pushTopic(state.me), title: j.title, message: j.msg, delay: String(Math.round(j.at / 1000)), tags: ['heart'], click: location.href.split('#')[0].split('?')[0] }) })
+          .then(function (r) { if (r.ok) { keys[j.k] = now; changed = true; } }).catch(function () {});
+      });
+    });
+    done.then(function () { if (changed) { var cc = grCfg(); cc.keys = keys; GR.doc = cc; return state.db.doc('seen/gm' + state.me).set(cc); } }).catch(function () {}).then(function () { grBusy = false; });
+  }
+  setInterval(grSchedule, 30 * 60000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) grSchedule(); });
+
   /* ---------- ESPA V1.0 ---------- */
   var ESPA = { id: '', msgs: [], busy: false, chats: [], unsub: null, who: 'me', readonly: false };
   function espaNewId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -3691,6 +3778,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     db.collection('medlog').onSnapshot(function (snap) {
       var o = {}; snap.docs.forEach(function (d) { o[d.id] = d.data(); }); MED.log = o; renderMeds();
     }, function () {});
+    db.doc('seen/gm' + state.me).onSnapshot(function (snap) { GR.doc = snap.exists ? snap.data() : null; grPaint(); grSchedule(); }, function () {});
     subX('events', 'events'); subX('wishes', 'wishes'); subX('letters', 'letters'); subX('answers', 'answers'); subX('moods', 'moods'); subX('items', 'items'); subX('albums', 'albums'); subX('coupons', 'coupons');
     db.collection('games').onSnapshot(function (snap) { var o = {}; snap.docs.forEach(function (d) { o[d.id] = d.data(); }); GM.docs = o; if (!$('#p-oyun').hidden) renderGames(); }, function () {});
     db.doc('app/meet').onSnapshot(function (snap) { X.meet = snap.exists ? snap.data() : null; if (inMain()) renderMeet(); }, function () {});
