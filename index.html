@@ -175,7 +175,7 @@ try {
   };
   var fn = { call: async function (name, body) {
     var r = await sb.functions.invoke(name, { body: body });
-    if (r.error) { var j = null; try { j = await r.error.context.json(); } catch (e) {} throw { code: (j && j.error) || 'network' }; }
+    if (r.error) { var j = null; try { j = await r.error.context.json(); } catch (e) {} throw { code: (j && j.error) || 'network', detail: j && j.detail }; }
     return r.data;
   } };
   window.__fbResolve({ db: db, assets: assets, auth: auth, fn: fn });
@@ -2968,7 +2968,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       if (!r || !r.reply) throw { code: 'upstream' };
       if (id === ESPA.id) ESPA.msgs.push({ role: 'assistant', content: String(r.reply) });
     } catch (e) {
-      if (id === ESPA.id) ESPA.msgs.push({ role: 'err', content: ESPA_ERR[e && e.code] || ESPA_ERR.network });
+      if (id === ESPA.id) ESPA.msgs.push({ role: 'err', content: (ESPA_ERR[e && e.code] || ESPA_ERR.network) + (e && e.detail ? '\n[' + String(e.detail).slice(0, 300) + ']' : '') });
     }
     ESPA.busy = false; espaPaint();
   }
