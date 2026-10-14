@@ -1,0 +1,201 @@
+name: Android uygulaması (APK)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/apk.yml'
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Proje dosyalarını hazırla
+        run: |
+          set -e
+          mkdir -p apk_build/app/src/main/java/tr/posta apk_build/app/src/main/res/mipmap-xxxhdpi
+          cp icon-192.png apk_build/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cd apk_build
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+            repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+            repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "Posta Kutusu"
+          include ':app'
+          EOF
+          cat > build.gradle <<'EOF'
+          plugins {
+            id 'com.android.application' version '8.5.2' apply false
+          }
+          EOF
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2g
+          android.useAndroidX=false
+          EOF
+          cat > app/build.gradle <<'EOF'
+          plugins {
+            id 'com.android.application'
+          }
+          android {
+            namespace 'tr.posta'
+            compileSdk 34
+            defaultConfig {
+              applicationId 'tr.posta.kutumuz'
+              minSdk 24
+              targetSdk 34
+              versionCode 1
+              versionName '1.0'
+            }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+            }
+          }
+          EOF
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+            <application
+              android:label="Posta Kutumuz"
+              android:icon="@mipmap/ic_launcher"
+              android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+              android:usesCleartextTraffic="false">
+              <activity
+                android:name=".MainActivity"
+                android:exported="true"
+                android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+                android:windowSoftInputMode="adjustResize">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+          cat > app/src/main/java/tr/posta/MainActivity.java <<'EOF'
+          package tr.posta;
+
+          import android.Manifest;
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.webkit.GeolocationPermissions;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          public class MainActivity extends Activity {
+            static final String SITE = "https://kaisa4best.github.io/Posta/";
+            WebView web;
+            ValueCallback<Uri[]> filePick;
+            GeolocationPermissions.Callback geoCb;
+            String geoOrigin;
+
+            @Override
+            protected void onCreate(Bundle saved) {
+              super.onCreate(saved);
+              web = new WebView(this);
+              setContentView(web);
+              WebSettings s = web.getSettings();
+              s.setJavaScriptEnabled(true);
+              s.setDomStorageEnabled(true);
+              s.setMediaPlaybackRequiresUserGesture(false);
+              s.setGeolocationEnabled(true);
+              s.setAllowFileAccess(false);
+              web.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                  Uri u = r.getUrl();
+                  String sch = u.getScheme() == null ? "" : u.getScheme();
+                  String host = u.getHost() == null ? "" : u.getHost();
+                  if (!sch.equals("http") && !sch.equals("https")) return false;
+                  if (host.equals("kaisa4best.github.io")) return false;
+                  try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception e) { }
+                  return true;
+                }
+              });
+              web.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onShowFileChooser(WebView w, ValueCallback<Uri[]> cb, FileChooserParams p) {
+                  if (filePick != null) filePick.onReceiveValue(null);
+                  filePick = cb;
+                  try {
+                    startActivityForResult(p.createIntent(), 1);
+                  } catch (Exception e) {
+                    filePick = null;
+                    return false;
+                  }
+                  return true;
+                }
+                @Override
+                public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
+                  if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    cb.invoke(origin, true, false);
+                  } else {
+                    geoCb = cb;
+                    geoOrigin = origin;
+                    requestPermissions(new String[] { Manifest.permission.ACCESS_FINE_LOCATION }, 2);
+                  }
+                }
+              });
+              if (saved != null) web.restoreState(saved); else web.loadUrl(SITE);
+            }
+
+            @Override
+            protected void onActivityResult(int req, int res, Intent data) {
+              if (req == 1 && filePick != null) {
+                filePick.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data));
+                filePick = null;
+              }
+              super.onActivityResult(req, res, data);
+            }
+
+            @Override
+            public void onRequestPermissionsResult(int req, String[] perms, int[] results) {
+              if (req == 2 && geoCb != null) {
+                geoCb.invoke(geoOrigin, results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED, false);
+                geoCb = null;
+              }
+              super.onRequestPermissionsResult(req, perms, results);
+            }
+
+            @Override
+            protected void onSaveInstanceState(Bundle out) {
+              super.onSaveInstanceState(out);
+              web.saveState(out);
+            }
+
+            @Override
+            public void onBackPressed() {
+              if (web.canGoBack()) web.goBack(); else super.onBackPressed();
+            }
+          }
+          EOF
+      - name: Derle
+        run: gradle -p apk_build assembleDebug --no-daemon --stacktrace
+      - name: Yayınla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp apk_build/app/build/outputs/apk/debug/app-debug.apk Posta.apk
+          gh release create "apk-${{ github.run_number }}" Posta.apk --title "Posta Kutumuz (Android) ${{ github.run_number }}" --notes "Telefonuna indirip kur."
