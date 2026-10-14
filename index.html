@@ -875,7 +875,6 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   <section id="p-espa" data-panel hidden>
     <div class="sec-head"><h2>ESPA V1.0</h2><span><button class="link-btn" type="button" id="espaList">Sohbetler</button> · <button class="link-btn" type="button" id="espaNew">Yeni</button></span></div>
     <div class="espa-drawer" id="espaDrawer" hidden>
-      <div class="chips-row" id="espaWho" hidden></div>
       <div id="espaChats"></div>
     </div>
     <div class="espa-log" id="espaLog" aria-live="polite"></div>
@@ -2924,8 +2923,8 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   var ESPA = { id: '', msgs: [], busy: false, chats: [], unsub: null, who: 'me', readonly: false };
   function espaNewId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function espaNote() {
-    var n = names(), el = $('#espaNote'); if (!el) return;
-    el.textContent = 'Yazdıkların yanıt üretmek için yapay zekâ servisine gönderilir. Sohbetler kaydedilir' + (isAdmin() ? ' ve ' + (n.B || 'diğer kişi') + '’in sohbetlerini de bu ekrandan görebilirsin.' : '; ' + (n.A || 'yönetici') + ' bu sohbetleri görebilir.');
+    var el = $('#espaNote'); if (!el) return;
+    el.textContent = 'Yazdıkların yanıt üretmek için yapay zekâ servisine gönderilir. Sohbetler hesabında kaydedilir; sitede yalnızca sen görürsün.';
   }
   function espaPaint() {
     var el = $('#espaLog'); if (!el) return;
@@ -2936,10 +2935,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
   function espaFmt(t) { try { return new Date(t).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
   function espaDrawer() {
-    var box = $('#espaChats'), n = names(), who = $('#espaWho');
-    who.hidden = !isAdmin();
-    if (isAdmin()) who.innerHTML = '<button class="btn' + (ESPA.who === 'me' ? ' primary' : '') + '" type="button" data-who="me">Benim</button><button class="btn' + (ESPA.who === 'other' ? ' primary' : '') + '" type="button" data-who="other">' + esc(n.B || 'Diğer') + '</button>';
-    var want = isAdmin() && ESPA.who === 'other' ? 'B' : (isAdmin() ? 'A' : state.me);
+    var box = $('#espaChats'), want = state.me;
     var list = ESPA.chats.filter(function (c) { return c.data.slot === want; });
     box.innerHTML = list.length ? list.map(function (c) { var d = c.data; return '<button class="espa-ch" type="button" data-cid="' + esc(c.id) + '"' + (c.id === (want + '_' + ESPA.id) ? ' aria-current="true"' : '') + '>' + esc(d.title || 'Sohbet') + '<small>' + esc(espaFmt(d.updatedAt)) + ' · ' + ((d.messages || []).length) + ' mesaj</small></button>'; }).join('') : '<p class="muted small">Henüz sohbet yok.</p>';
   }
@@ -2978,11 +2974,10 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   $('#espaIn').addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 140) + 'px'; });
   $('#espaNew').addEventListener('click', function () { if (ESPA.busy) return; ESPA.id = espaNewId(); ESPA.msgs = []; ESPA.readonly = false; $('#espaDrawer').hidden = true; espaPaint(); });
   $('#espaList').addEventListener('click', function () { var d = $('#espaDrawer'); d.hidden = !d.hidden; if (!d.hidden) { if (ESPA.unsub) { ESPA.unsub(); ESPA.unsub = null; } espaSub(); espaDrawer(); } });
-  $('#espaWho').addEventListener('click', function (e) { var b = e.target.closest('[data-who]'); if (!b) return; ESPA.who = b.dataset.who; espaDrawer(); });
   $('#espaChats').addEventListener('click', function (e) {
     var b = e.target.closest('[data-cid]'); if (!b || ESPA.busy) return;
     var c = ESPA.chats.filter(function (x) { return x.id === b.dataset.cid; })[0]; if (!c) return;
-    var mine = c.data.slot === state.me;
+    var mine = true;
     ESPA.id = c.id.slice(2); ESPA.msgs = (c.data.messages || []).map(function (m) { return { role: m.role, content: m.content }; });
     ESPA.readonly = !mine; $('#espaDrawer').hidden = true; espaPaint();
     if (!mine) toast((c.data.ownerName || 'Diğer kişi') + '’in sohbeti (sadece okuma).');
