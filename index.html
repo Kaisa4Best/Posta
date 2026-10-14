@@ -1297,12 +1297,17 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   function armGesture() {
     if (gestureArmed) return;
     gestureArmed = true;
+    // Ana ekrandan açılan uygulamada tarayıcı sesi ancak gerçek bir dokunuştan sonra açar.
+    // Müzik başlayana kadar her dokunuşta (tıklama, dokunma bırakma) yeniden denenir.
+    var evs = ['click', 'touchend', 'pointerup', 'keydown'];
+    var off = function () { evs.forEach(function (ev) { document.removeEventListener(ev, h, true); }); };
     var h = function (e) {
-      document.removeEventListener('pointerdown', h, true);
-      if (e.target.closest && e.target.closest('#player, [data-act="play-track"]')) return;
+      if (!audio.paused) { off(); return; }
+      if (e.target && e.target.closest && e.target.closest('#player, [data-act="play-track"]')) return;
       startMusic();
     };
-    document.addEventListener('pointerdown', h, true);
+    evs.forEach(function (ev) { document.addEventListener(ev, h, true); });
+    audio.addEventListener('playing', off, { once: true });
   }
   function enter() { show('main'); renderAll(); armGesture(); }
   function route() {
@@ -1745,7 +1750,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   /* ---------- Müzik oynatıcı ---------- */
-  var audio = new Audio(); audio.preload = 'none';
+  var audio = new Audio(); audio.preload = 'auto';
   audio.addEventListener('play', function () { state.playing = true; renderPlayer(); });
   audio.addEventListener('pause', function () { state.playing = false; renderPlayer(); });
   audio.addEventListener('playing', function () { state.errRun = 0; });
@@ -3659,6 +3664,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         if (i < 0) { audio.pause(); audio.removeAttribute('src'); state.curId = null; state.playing = false; }
       }
       if (state.wantPlay && state.tracks.length && inMain()) { state.wantPlay = false; setTrack(0, true); }
+      else if (state.cur < 0 && state.tracks.length && audio.paused) { setTrack(0, false); } // ilk şarkıyı önceden yükle, basınca hemen çalsın
       if (inMain()) { renderTracks(); renderPlayer(); }
     }, onErr);
     db.collection('notes').orderBy('createdAt', 'desc').limit(100).onSnapshot(function (snap) {
