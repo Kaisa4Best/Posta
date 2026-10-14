@@ -531,6 +531,28 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 .espa-empty{margin:auto;text-align:center;color:var(--muted)}
 .espa-form{display:flex;gap:8px;align-items:flex-end}
 .espa-form textarea{flex:1;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 14px;resize:none;max-height:140px}
+
+.heart-btn{width:100%;font-size:18px;padding:16px}
+.heart-btn.pop{animation:hpop .5s}
+@keyframes hpop{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+.cp{display:grid;gap:6px;padding:14px;margin-top:10px;border:2px dashed var(--red);border-radius:14px;background:var(--surface)}
+.cp.used{opacity:.55;border-color:var(--line)}
+.cp .t{font-size:19px;font-weight:700}
+.gm-tabs .btn{flex:1;padding:10px 6px}
+.gm-tabs .btn[aria-pressed=true]{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.xo{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:300px;margin:10px auto}
+.xo button{aspect-ratio:1;font:700 38px/1 var(--body);border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer}
+.xo button.x{color:var(--red)}
+.gm-st{font-weight:700;text-align:center;margin:6px 0}
+.gm-sc{text-align:center;color:var(--muted);font-size:14px}
+.rps{display:flex;gap:10px;justify-content:center;margin:12px 0}
+.rps button{font-size:34px;width:76px;height:76px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.rps button.on{border-color:var(--red);outline:3px solid var(--red)}
+.hm-word{font:700 30px/1.2 var(--body);letter-spacing:.25em;text-align:center;margin:10px 0}
+.hm-keys{display:flex;flex-wrap:wrap;gap:5px;justify-content:center}
+.hm-keys button{width:34px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:600 15px var(--body);cursor:pointer}
+.hm-keys button:disabled{opacity:.35}
+.pin-acts{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 
 <style id="glass">
@@ -707,6 +729,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <button class="nav-item" type="button" data-tab="albumler">Albümler</button>
         <button class="nav-item" type="button" data-tab="harita">Harita</button>
         <button class="nav-item" type="button" data-tab="ozet">Yıllık özet</button>
+        <button class="nav-item" type="button" data-tab="kitap">Anı kitabı</button>
       </div>
     </div>
     <div class="nav-group" data-g="plan">
@@ -726,6 +749,8 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <button class="nav-item" type="button" data-tab="mesafe">Mesafe</button>
         <button class="nav-item" type="button" data-tab="cizim">Çizim tahtası</button>
         <button class="nav-item" type="button" data-tab="ilac">İlaç hatırlatıcı</button>
+        <button class="nav-item" type="button" data-tab="kupon">Sevgi kuponları</button>
+        <button class="nav-item" type="button" data-tab="oyun">Oyunlar</button>
         <button class="nav-item" type="button" data-tab="espa">ESPA V1.0</button>
       </div>
     </div>
@@ -773,6 +798,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <div class="panel otd ms" id="msBox" hidden></div>
     <div class="panel otd" id="upBox" hidden></div>
     <div class="panel" id="meetBox" style="margin-top:12px"></div>
+    <div class="panel heart-panel" style="margin-top:12px"><button class="btn primary heart-btn" type="button" id="heartBtn">💗 Seni düşünüyorum</button><p class="muted small" id="heartSt" role="status"></p></div>
     <div id="dailyBox" style="margin-top:12px"></div>
     <div class="panel otd" id="otd" hidden></div>
 
@@ -796,7 +822,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <div class="pin-res" id="memPinRes"></div>
         <p class="muted small" id="memPinSt"></p>
       </div>
-      <div class="field"><label for="memBody">Notun (isteğe bağlı)</label><textarea id="memBody" maxlength="1500"></textarea></div>
+      <div class="field"><label for="memBody">Notun (isteğe bağlı)</label><textarea id="memBody" maxlength="1500"></textarea><p style="margin-top:6px"><button class="link-btn" type="button" id="memAi">ESPA ile not yazdır</button> <span class="muted small" id="memAiSt" role="status"></span></p></div>
       <div class="field" id="memPhotoField"><label for="memPhoto" id="memPhotoLbl">Fotoğraflar (isteğe bağlı, birden fazla seçebilirsin)</label><input type="file" id="memPhoto" accept="image/jpeg,image/png,image/webp,image/gif" multiple></div>
       <p class="err" id="memErr" role="alert"></p>
       <div class="actions"><button class="btn primary" type="submit" id="memBtn">Kaydet</button><button class="btn" type="button" id="memCancel">Vazgeç</button></div>
@@ -857,7 +883,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   <section id="p-harita" data-panel hidden>
     <div class="sec-head"><h2>Gittiğimiz yerler</h2><span class="muted small" id="pinCount"></span></div>
     <div class="dist-map" id="pinMap" role="img" aria-label="Anıların bulunduğu yerler"></div>
-    <p class="muted small" style="margin-top:10px">Pinler, konum eklediğin anılardan gelir. Pine dokununca anının adı ve tarihi görünür.</p>
+    <p class="muted small" style="margin-top:10px">Pinler, konum eklediğin anılardan gelir. Pine dokununca anının adı çıkar ve pini oradan düzenleyebilirsin. Aşağıdaki listeden de konumu değiştirebilir ya da pini kaldırabilirsin.</p>
     <div class="actions" style="margin-top:10px"><button class="btn primary" type="button" id="pinAdd">Yeni anı ekle</button></div>
     <div id="pinNoLoc" style="margin-top:16px"></div>
   </section>
@@ -869,6 +895,37 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <canvas id="bd" class="bd" width="1000" height="1000" aria-label="Ortak çizim tahtası"></canvas>
     <p class="muted small" style="margin-top:8px">İkiniz de aynı tahtaya çizersiniz. Parmağını kaldırınca çizgi karşı tarafta da belirir.</p>
     <p class="muted small" id="bdSt" role="status"></p>
+  </section>
+
+  <!-- Sevgi kuponları -->
+  <section id="p-kupon" data-panel hidden>
+    <div class="sec-head"><h2>Sevgi kuponları</h2></div>
+    <form class="panel form" id="cpForm" autocomplete="off" novalidate style="margin-top:0">
+      <div class="field"><label for="cpText">Ne vermek istiyorsun?</label><input type="text" id="cpText" maxlength="80" placeholder="Bir akşam yemeği, bir masaj, bir film gecesi…"></div>
+      <p class="err" id="cpErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="submit">Kuponu ver</button></div>
+    </form>
+    <div id="cpList"></div>
+  </section>
+
+  <!-- Oyunlar -->
+  <section id="p-oyun" data-panel hidden>
+    <div class="sec-head"><h2>Oyunlar</h2></div>
+    <div class="add-row gm-tabs" id="gmTabs"><button class="btn" type="button" data-gmtab="xox">XOX</button><button class="btn" type="button" data-gmtab="tkm">Taş kâğıt makas</button><button class="btn" type="button" data-gmtab="asma">Adam asmaca</button></div>
+    <div class="panel" id="gmBox" style="margin-top:12px"></div>
+    <p class="muted small" style="margin-top:8px">Oyunlar canlıdır: hamleni yapınca diğerine bildirim gider.</p>
+  </section>
+
+  <!-- Anı kitabı -->
+  <section id="p-kitap" data-panel hidden>
+    <div class="sec-head"><h2>Anı kitabı</h2></div>
+    <p class="muted">Anılarınızı fotoğraflarıyla birlikte tek bir yazdırılabilir sayfaya toplar. Açılan sayfada “Yazdır” deyip PDF olarak kaydedebilirsin.</p>
+    <div class="panel form" style="margin-top:12px">
+      <div class="field"><label for="bkYear">Hangi yıl?</label><select id="bkYear"></select></div>
+      <label class="check"><input type="checkbox" id="bkPics" checked> Fotoğrafları ekle</label>
+      <p class="muted small" id="bkInfo"></p>
+      <div class="actions"><button class="btn primary" type="button" id="bkGo">Kitabı oluştur</button></div>
+    </div>
   </section>
 
   <!-- ESPA -->
@@ -948,6 +1005,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <div class="field"><label for="letText">Mektup</label><textarea id="letText" maxlength="3000" style="min-height:120px"></textarea></div>
       <div class="field"><label for="letDate">Açılacağı gün</label><input type="date" id="letDate"></div>
       <p class="err" id="letErr" role="alert"></p>
+      <div class="field"><label for="letHint">ESPA'dan taslak iste (isteğe bağlı: konu)</label><div class="add-row"><input type="text" id="letHint" maxlength="100" placeholder="Örn. yıl dönümümüz, seni özledim"><button class="btn" type="button" id="letAi">Taslak yaz</button></div><p class="muted small" id="letAiSt" role="status"></p></div>
       <div class="actions"><button class="btn primary" type="submit">Mektubu bırak</button></div>
     </form>
     <div id="letList"></div>
@@ -1432,7 +1490,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         '<h3>' + esc(m.title) + '</h3>' +
         (m.body ? '<p class="mem-text">' + esc(m.body) + '</p>' : '') +
         (memPending(m).length && !isAdmin() ? '<p class="pending-note">' + memPending(m).length + ' fotoğraf yönetici onayını bekliyor.</p>' : '') +
-        '<div class="mem-foot"><span>' + (who ? esc(who) : '') + '</span><span><button class="link-btn" type="button" data-act="add-photos" data-id="' + esc(m.id) + '">Fotoğraf ekle</button> <button class="link-btn" type="button" data-act="del-mem" data-id="' + esc(m.id) + '">Sil</button></span></div>' +
+        '<div class="mem-foot"><span>' + (who ? esc(who) : '') + '</span><span><button class="link-btn" type="button" data-act="add-photos" data-id="' + esc(m.id) + '">Fotoğraf ekle</button> <button class="link-btn" type="button" data-act="edit-pin" data-id="' + esc(m.id) + '">Konum</button> <button class="link-btn" type="button" data-act="del-mem" data-id="' + esc(m.id) + '">Sil</button></span></div>' +
         '</div></article>';
     }).join('') + '</div>';
     $$('img[data-ph]', box).forEach(function (im) { im.addEventListener('error', function () { im.classList.add('broken'); }); });
@@ -1662,12 +1720,15 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
     if (window.paintNav) window.paintNav();
     if (tab === 'mesafe' && window.renderMesafe) setTimeout(window.renderMesafe, 0);
     if (tab === 'harita' && window.renderHarita) setTimeout(window.renderHarita, 0);
     if (tab === 'cizim' && window.bdShow) setTimeout(window.bdShow, 0);
+    if (tab === 'kitap' && window.renderBookInfo) setTimeout(window.renderBookInfo, 0);
+    if (tab === 'oyun' && window.renderGames) setTimeout(window.renderGames, 0);
+    if (tab === 'kupon' && window.renderCoupons) setTimeout(window.renderCoupons, 0);
     if (tab === 'espa' && window.espaShow) setTimeout(window.espaShow, 0);
     if (tab === 'ilac' && window.renderMeds) setTimeout(window.renderMeds, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
@@ -2054,7 +2115,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'espa'], diger: ['muzik', 'uygulama'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa'], diger: ['muzik', 'uygulama'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -2215,7 +2276,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     'Sana nasıl daha iyi destek olabilirim?', 'Son zamanlarda en çok neye minnettarsın?'
   ];
   var MOODS = ['😍', '🥰', '😊', '😌', '😐', '😴', '😢', '😡', '🤒'];
-  var X = { events: [], wishes: [], letters: [], answers: [], moods: [], items: [] };
+  var X = { events: [], wishes: [], letters: [], answers: [], moods: [], items: [], coupons: [] };
   var other = function () { return state.me === 'A' ? 'B' : 'A'; };
   var todayKey = function () { return ymdString(todayYMD()); };
   var delBtn = function (col, id) { return '<button class="link-btn" type="button" data-act="del-doc" data-col="' + col + '" data-id="' + esc(id) + '">Sil</button>'; };
@@ -2541,7 +2602,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     var panel = $('#p-harita'); if (!panel || panel.hidden) return;
     var pins = state.memories.filter(hasPin), none = state.memories.filter(function (m) { return !hasPin(m); });
     $('#pinCount').textContent = pins.length ? pins.length + ' yer' : '';
-    renderNoLoc(none);
+    renderNoLoc();
     var el = $('#pinMap');
     ensureLeaflet().then(function (ok) {
       if (!ok) { el.innerHTML = '<p class="muted" style="padding:16px">Harita yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.</p>'; return; }
@@ -2550,13 +2611,24 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         PIN.map = L.map(el).setView([39, 35], 5);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(PIN.map);
         PIN.layers = L.layerGroup().addTo(PIN.map);
+        if (PIN.map.on) {
+          PIN.map.on('click', function (ev) {
+            var e0 = PIN.edit; if (!e0 || !e0.tap || !ev || !ev.latlng) return;
+            var m0 = pinMem(e0.id), patch = { lat: ev.latlng.lat, lng: ev.latlng.lng };
+            pinSave(e0.id, patch, 'Pin güncellendi.');
+          });
+          PIN.map.on('popupopen', function (ev) {
+            var el = ev && ev.popup && ev.popup.getElement && ev.popup.getElement(), b = el && el.querySelector('[data-pinedit]');
+            if (b) b.addEventListener('click', function () { if (PIN.map.closePopup) PIN.map.closePopup(); pinOpen(b.dataset.pinedit); });
+          });
+        }
       }
       PIN.map.invalidateSize(); PIN.layers.clearLayers();
       var pts = [];
       pins.forEach(function (m) {
         var mk = L.circleMarker([m.lat, m.lng], { radius: 9, color: '#fff', weight: 3, fillColor: '#c23f2a', fillOpacity: 1 }).addTo(PIN.layers);
         var d = parseYMD(m.date);
-        mk.bindPopup('<b>' + esc(m.title) + '</b><br>' + (d ? esc(fmtLong(d)) : '') + (m.place ? ' · ' + esc(m.place) : ''));
+        mk.bindPopup('<b>' + esc(m.title) + '</b><br>' + (d ? esc(fmtLong(d)) : '') + (m.place ? ' · ' + esc(m.place) : '') + '<br><button type="button" data-pinedit="' + esc(m.id) + '" style="margin-top:6px">Pini düzenle</button>');
         pts.push([m.lat, m.lng]);
       });
       var sig = pts.map(function (q) { return q[0].toFixed(3) + ',' + q[1].toFixed(3); }).join('|');
@@ -2568,35 +2640,68 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     });
   }
   window.renderHarita = renderHarita;
-  function renderNoLoc(none) {
+  function pinRow(m, ed) {
+    var has = hasPin(m);
+    var head = '<div><b>' + esc(m.title) + '</b>' + (m.place ? ' <span class="muted small">· ' + esc(m.place) + '</span>' : '') + '</div>';
+    if (!ed) return '<div class="pin-row" data-pinrow="' + esc(m.id) + '">' + head + '<div class="pin-acts"><button class="btn" type="button" data-pinedit="' + esc(m.id) + '">' + (has ? 'Konumu değiştir' : 'Konum ekle') + '</button>' + (has ? '<button class="btn" type="button" data-pinclear="' + esc(m.id) + '">Pini kaldır</button>' : '') + '</div></div>';
+    return '<div class="pin-row" data-pinrow="' + esc(m.id) + '">' + head +
+      '<div class="add-row"><input type="text" id="pinQ" maxlength="80" value="' + esc(PIN.edit.q != null ? PIN.edit.q : (m.place || '')) + '" placeholder="Yer adı"><button class="btn" type="button" data-pinfind="' + esc(m.id) + '">Bul</button></div>' +
+      '<div class="pin-res">' + pinBtns(PIN.edit.res || [], 'data-pinpick') + '</div>' +
+      '<div class="pin-acts"><button class="btn" type="button" data-pintap="1">Haritadan seç</button><button class="btn" type="button" data-pinnow="1">Şu anki konumum</button><button class="link-btn" type="button" data-pincancel="1">Vazgeç</button></div>' +
+      '<p class="muted small">' + esc(PIN.edit.msg || '') + '</p></div>';
+  }
+  function renderNoLoc() {
     var box = $('#pinNoLoc'); if (!box) return;
     if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
-    if (!none.length) { box.innerHTML = ''; return; }
-    box.innerHTML = '<p class="k">Konumu olmayan anılar (' + none.length + ')</p>' + none.slice(0, 30).map(function (m) {
-      var ed = PIN.edit && PIN.edit.id === m.id;
-      return '<div class="pin-row"><div><b>' + esc(m.title) + '</b>' + (m.place ? ' <span class="muted small">· ' + esc(m.place) + '</span>' : '') + '</div>' +
-        (ed ? '<div class="add-row"><input type="text" id="pinQ" maxlength="80" value="' + esc(PIN.edit.q != null ? PIN.edit.q : (m.place || '')) + '" placeholder="Yer adı"><button class="btn" type="button" data-pinfind="' + esc(m.id) + '">Bul</button></div><div class="pin-res">' + pinBtns(PIN.edit.res || [], 'data-pinpick') + '</div><p class="muted small">' + esc(PIN.edit.msg || '') + '</p>'
-          : '<div><button class="btn" type="button" data-pinedit="' + esc(m.id) + '">Konum ekle</button></div>') + '</div>';
-    }).join('');
+    var mems = state.memories, none = mems.filter(function (m) { return !hasPin(m); }), has = mems.filter(hasPin);
+    var ed = function (m) { return !!(PIN.edit && PIN.edit.id === m.id); }, h = '';
+    if (has.length) h += '<p class="k">Haritadaki yerler (' + has.length + ')</p>' + has.slice(0, 60).map(function (m) { return pinRow(m, ed(m)); }).join('');
+    if (none.length) h += '<p class="k" style="margin-top:16px">Konumu olmayan anılar (' + none.length + ')</p>' + none.slice(0, 40).map(function (m) { return pinRow(m, ed(m)); }).join('');
+    box.innerHTML = h;
+  }
+  function pinSave(id, patch, okMsg) {
+    PIN.edit = null;
+    return state.db.doc('memories/' + id).update(patch).then(function () { toast(okMsg); renderNoLoc(); }).catch(fail);
+  }
+  function pinMem(id) { return state.memories.filter(function (x) { return x.id === id; })[0]; }
+  function pinOpen(id) {
+    PIN.edit = { id: id, res: [], msg: '' }; renderNoLoc();
+    var q = $('#pinQ'); if (q) q.focus();
+    var r = document.querySelector('[data-pinrow="' + id + '"]'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'center' });
   }
   $('#p-harita').addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.pinedit) { PIN.edit = { id: b.dataset.pinedit, res: [], msg: '' }; renderNoLoc(state.memories.filter(function (m) { return !hasPin(m); })); var q = $('#pinQ'); if (q) q.focus(); }
-    else if (b.dataset.pinfind) {
-      var q2 = $('#pinQ').value.trim(); if (!q2) return;
-      PIN.edit.q = q2; PIN.edit.msg = 'Aranıyor…'; PIN.edit.res = [];
-      var none = state.memories.filter(function (m) { return !hasPin(m); });
-      renderNoLoc(none);
-      geoSearch(q2).then(function (list) { PIN.edit.res = list; PIN.edit.msg = list.length ? 'Doğru olana dokun.' : 'Bulunamadı. Daha açık yaz.'; })
-        .catch(function () { PIN.edit.msg = 'Arama şu an çalışmıyor.'; })
-        .then(function () { document.activeElement.blur(); renderNoLoc(state.memories.filter(function (m) { return !hasPin(m); })); });
+    if (b.dataset.pinedit) pinOpen(b.dataset.pinedit);
+    else if (b.dataset.pinclear) {
+      if (!armed(b)) return;
+      pinSave(b.dataset.pinclear, { lat: null, lng: null }, 'Pin kaldırıldı.');
+    } else if (b.dataset.pincancel) { PIN.edit = null; renderNoLoc(); }
+    else if (b.dataset.pintap) {
+      if (!PIN.edit) return; PIN.edit.tap = true; PIN.edit.msg = 'Şimdi haritada yeri seçmek için dokun.'; renderNoLoc();
+      var mp = $('#pinMap'); if (mp && mp.scrollIntoView) mp.scrollIntoView({ block: 'center' });
+    } else if (b.dataset.pinnow) {
+      if (!PIN.edit) return; var id0 = PIN.edit.id;
+      if (!navigator.geolocation) { PIN.edit.msg = 'Bu tarayıcı konum desteklemiyor.'; renderNoLoc(); return; }
+      PIN.edit.msg = 'Konum alınıyor…'; renderNoLoc();
+      navigator.geolocation.getCurrentPosition(function (pos) { pinSave(id0, { lat: pos.coords.latitude, lng: pos.coords.longitude }, 'Pin güncellendi.'); },
+        function (err) { if (PIN.edit) { PIN.edit.msg = err && err.code === 1 ? 'Konum izni verilmedi.' : 'Konum alınamadı.'; renderNoLoc(); } }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 });
+    } else if (b.dataset.pinfind) {
+      var q2 = $('#pinQ').value.trim(); if (!q2 || !PIN.edit) return;
+      PIN.edit.q = q2; PIN.edit.msg = 'Aranıyor…'; PIN.edit.res = []; renderNoLoc();
+      geoSearch(q2).then(function (list) { if (PIN.edit) { PIN.edit.res = list; PIN.edit.msg = list.length ? 'Doğru olana dokun.' : 'Bulunamadı. Daha açık yaz.'; } })
+        .catch(function () { if (PIN.edit) PIN.edit.msg = 'Arama şu an çalışmıyor.'; })
+        .then(function () { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); renderNoLoc(); });
     } else if (b.dataset.pinpick != null && b.dataset.pinpick !== '') {
       var r = (PIN.edit && PIN.edit.res || [])[+b.dataset.pinpick]; if (!r) return;
-      var id = PIN.edit.id, m0 = state.memories.filter(function (x) { return x.id === id; })[0];
-      var patch = { lat: r.lat, lng: r.lng }; if (m0 && !m0.place) patch.place = r.name.split(',')[0].slice(0, 60);
-      PIN.edit = null;
-      state.db.doc('memories/' + id).update(patch).then(function () { toast('Haritaya eklendi.'); }).catch(fail);
+      var id = PIN.edit.id, m0 = pinMem(id), patch = { lat: r.lat, lng: r.lng };
+      if (m0 && (hasPin(m0) || !m0.place)) patch.place = r.name.split(',')[0].trim().slice(0, 60);
+      pinSave(id, patch, 'Pin kaydedildi.');
     }
+  });
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act="edit-pin"]'); if (!b) return;
+    var id = b.dataset.id; PIN.edit = { id: id, res: [], msg: '' }; setTab('harita');
+    setTimeout(function () { var r = document.querySelector('[data-pinrow="' + id + '"]'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'center' }); }, 400);
   });
 
   /* ---------- Hava durumu ve yerel saat (Mesafe sayfası) ---------- */
@@ -2654,7 +2759,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       var s0 = Object.assign({}, state.settings || {}); delete s0.ntfyBase;
       var data = { uygulama: 'Posta Kutumuz', yedekTarihi: new Date().toISOString(), ayarlar: s0, anilar: state.memories, yapilacaklar: state.todos, sarkilar: state.tracks, mesajlar: state.notes,
         cizim: BD.strokes.length + ' çizgi', ilaclar: MED.meds,
-        takvim: X.events, dilekler: X.wishes, mektuplar: X.letters, cevaplar: X.answers, ruhHali: X.moods, hediyeler: X.items, albumler: X.albums, girisFotograflari: state.welcome, gorusme: X.meet };
+        takvim: X.events, dilekler: X.wishes, mektuplar: X.letters, cevaplar: X.answers, ruhHali: X.moods, hediyeler: X.items, albumler: X.albums, girisFotograflari: state.welcome, gorusme: X.meet, kuponlar: X.coupons };
       var files = {};
       (function walk(o) {
         if (!o || typeof o !== 'object') return;
@@ -2983,6 +3088,202 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     if (!mine) toast((c.data.ownerName || 'Diğer kişi') + '’in sohbeti (sadece okuma).');
   });
 
+
+  /* ---------- Seni düşünüyorum ---------- */
+  var heartAt = 0;
+  $('#heartBtn').addEventListener('click', function () {
+    var b = this, now = Date.now();
+    if (now - heartAt < 8000) { $('#heartSt').textContent = 'Biraz önce gönderdin.'; return; }
+    heartAt = now; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    sendNote('💗 Seni düşünüyorum.').then(function () { $('#heartSt').textContent = authorOf(other()) + ' için gönderildi.'; });
+  });
+
+  /* ---------- Sevgi kuponları ---------- */
+  function renderCoupons() {
+    var box = $('#cpList'); if (!box || $('#p-kupon').hidden) return;
+    var me = state.me, list = X.coupons.slice().sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+    var card = function (c) {
+      var mine = c.to === me, used = !!c.used;
+      return '<div class="cp' + (used ? ' used' : '') + '"><p class="stamp">' + esc(authorOf(c.from)).toLocaleUpperCase('tr-TR') + ' → ' + esc(authorOf(c.to)).toLocaleUpperCase('tr-TR') + '</p><p class="t">' + esc(c.text) + '</p>' +
+        '<p class="sub">' + (used ? 'Kullanıldı' + (c.usedAt ? ' · ' + new Date(c.usedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' }) : '') : 'Kullanılmadı') + '</p>' +
+        '<div class="pin-acts">' + (mine && !used ? '<button class="btn primary" type="button" data-cpuse="' + esc(c.id) + '">Kullan</button>' : '') + (c.from === me ? delBtn('coupons', c.id) : '') + '</div></div>';
+    };
+    var toMe = list.filter(function (c) { return c.to === me; }), fromMe = list.filter(function (c) { return c.from === me; });
+    box.innerHTML = '<p class="sub-head">Sana verilenler</p>' + (toMe.length ? toMe.map(card).join('') : '<p class="muted" style="margin-top:8px">Henüz kupon yok.</p>') +
+      '<p class="sub-head" style="margin-top:18px">Verdiklerin</p>' + (fromMe.length ? fromMe.map(card).join('') : '<p class="muted" style="margin-top:8px">Henüz kupon vermedin.</p>');
+  }
+  window.renderCoupons = renderCoupons;
+  $('#cpForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = $('#cpText').value.trim(), er = $('#cpErr'); er.textContent = '';
+    if (!t) { er.textContent = 'Kuponun ne olduğunu yaz.'; return; }
+    state.db.collection('coupons').add({ text: t.slice(0, 80), from: state.me, to: other(), used: false, createdAt: Date.now() })
+      .then(function () { $('#cpText').value = ''; sendNote('🎟️ Sana bir kupon verdim: ' + t.slice(0, 80)); }).catch(fail);
+  });
+  $('#p-kupon').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cpuse]'); if (!b) return;
+    var id = b.dataset.cpuse, c = X.coupons.filter(function (x) { return x.id === id; })[0]; if (!c || c.used) return;
+    state.db.doc('coupons/' + id).update({ used: true, usedAt: Date.now() }).then(function () { sendNote('🎟️ Kuponunu kullandım: ' + c.text); }).catch(fail);
+  });
+
+  /* ---------- Oyunlar ---------- */
+  var GM = { docs: {}, cur: LS.get('posta:gm') || 'xox' };
+  var gmName = function (k) { return authorOf(k) || (k === 'A' ? 'A' : 'B'); };
+  function gmSave(id, d, note) {
+    GM.docs[id] = d; renderGames();
+    state.db.doc('games/' + id).set(d).then(function () { if (note) pushTo(other(), authorOf(state.me) || 'Posta Kutumuz', note); }).catch(fail);
+  }
+  var XO_L = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  function xoWin(b) {
+    for (var i = 0; i < XO_L.length; i++) { var l = XO_L[i]; if (b[l[0]] !== ' ' && b[l[0]] === b[l[1]] && b[l[0]] === b[l[2]]) return b[l[0]] === 'X' ? 'A' : 'B'; }
+    return b.indexOf(' ') < 0 ? 'D' : '';
+  }
+  function xoNew(first, score) { return { board: '         ', turn: first, first: first, winner: '', score: score || { A: 0, B: 0, D: 0 }, at: Date.now() }; }
+  function gmXox() {
+    var d = GM.docs.xox || xoNew('A'), me = state.me, sc = Object.assign({ A: 0, B: 0, D: 0 }, d.score);
+    var st = d.winner === 'D' ? 'Berabere.' : d.winner ? (d.winner === me ? 'Kazandın! 🎉' : gmName(d.winner) + ' kazandı.') : (d.turn === me ? 'Sıra sende.' : 'Sıra: ' + gmName(d.turn));
+    var cells = d.board.split('').map(function (c, i) { return '<button type="button" class="' + (c === 'X' ? 'x' : '') + '" data-xo="' + i + '" aria-label="Kare ' + (i + 1) + '">' + (c === ' ' ? '' : c) + '</button>'; }).join('');
+    return '<p class="gm-st">' + esc(st) + '</p><div class="xo">' + cells + '</div><p class="gm-sc">' + esc(gmName('A')) + ' (X) ' + sc.A + ' · ' + esc(gmName('B')) + ' (O) ' + sc.B + ' · Berabere ' + sc.D + '</p>' +
+      '<div class="actions" style="justify-content:center"><button class="btn" type="button" data-xonew="1">' + (d.winner ? 'Yeni oyun' : 'Baştan başla') + '</button></div>';
+  }
+  function xoMove(i) {
+    var d = GM.docs.xox || xoNew('A'); if (d.winner || d.turn !== state.me || d.board[i] !== ' ') return;
+    var b = d.board.split(''); b[i] = state.me === 'A' ? 'X' : 'O'; var bs = b.join(''), w = xoWin(bs), sc = Object.assign({ A: 0, B: 0, D: 0 }, d.score);
+    if (w) sc[w] = (sc[w] || 0) + 1;
+    gmSave('xox', { board: bs, turn: other(), first: d.first || 'A', winner: w, score: sc, at: Date.now() }, w ? (w === 'D' ? 'XOX berabere bitti.' : 'XOX: ' + gmName(w) + ' kazandı.') : 'XOX: sıra sende.');
+  }
+  var RPS = { T: '✊', K: '✋', M: '✌️' }, RPS_N = { T: 'Taş', K: 'Kâğıt', M: 'Makas' };
+  function rpsWho(a, b) { if (a === b) return 'D'; return (a === 'T' && b === 'M') || (a === 'K' && b === 'T') || (a === 'M' && b === 'K') ? 'A' : 'B'; }
+  function gmTkm() {
+    var d = GM.docs.tkm || { A: '', B: '', score: { A: 0, B: 0, D: 0 }, last: null }, me = state.me, o = other(), sc = Object.assign({ A: 0, B: 0, D: 0 }, d.score);
+    var h = '<div class="rps">' + ['T', 'K', 'M'].map(function (k) { return '<button type="button" data-rps="' + k + '" class="' + (d[me] === k ? 'on' : '') + '" aria-label="' + RPS_N[k] + '">' + RPS[k] + '</button>'; }).join('') + '</div>';
+    var st = d[me] ? (d[o] ? '' : gmName(o) + ' seçince sonuç çıkacak.') : (d[o] ? gmName(o) + ' seçti, sıra sende.' : 'Birini seç.');
+    h += '<p class="gm-st">' + esc(st) + '</p>';
+    if (d.last) { var l = d.last; h += '<p class="gm-sc">Son tur: ' + esc(gmName('A')) + ' ' + RPS[l.A] + ' · ' + esc(gmName('B')) + ' ' + RPS[l.B] + ' → ' + (l.w === 'D' ? 'Berabere' : esc(gmName(l.w)) + ' kazandı') + '</p>'; }
+    return h + '<p class="gm-sc">' + esc(gmName('A')) + ' ' + sc.A + ' · ' + esc(gmName('B')) + ' ' + sc.B + ' · Berabere ' + sc.D + '</p>';
+  }
+  function rpsPick(k) {
+    var d = Object.assign({ A: '', B: '', score: { A: 0, B: 0, D: 0 }, last: null }, GM.docs.tkm || {}), me = state.me, o = other();
+    if (d[me]) return; d[me] = k; d.score = Object.assign({ A: 0, B: 0, D: 0 }, d.score);
+    var note = 'Taş kâğıt makas: hamleni bekliyor.';
+    if (d[o]) { var w = rpsWho(d.A, d.B); d.last = { A: d.A, B: d.B, w: w }; d.score[w] = (d.score[w] || 0) + 1; note = 'Taş kâğıt makas: ' + (w === 'D' ? 'berabere' : gmName(w) + ' kazandı') + '.'; d.A = ''; d.B = ''; }
+    d.at = Date.now(); gmSave('tkm', d, note);
+  }
+  var TR_AL = 'abcçdefgğhıijklmnoöprsştuüvyz'.split('');
+  var trLow = function (t) { return String(t || '').toLocaleLowerCase('tr-TR'); };
+  function hmWrong(d) { var w = d.word || '', n = 0; (d.guessed || '').split('').forEach(function (c) { if (w.indexOf(c) < 0) n++; }); return n; }
+  function hmFig(n) {
+    var parts = ['<circle cx="70" cy="40" r="12"/>', '<line x1="70" y1="52" x2="70" y2="95"/>', '<line x1="70" y1="62" x2="52" y2="82"/>', '<line x1="70" y1="62" x2="88" y2="82"/>', '<line x1="70" y1="95" x2="54" y2="122"/>', '<line x1="70" y1="95" x2="86" y2="122"/>'];
+    return '<svg viewBox="0 0 120 140" width="130" height="150" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="display:block;margin:0 auto" aria-hidden="true"><path d="M15 132h60M35 132V10h42v18"/>' + parts.slice(0, n).join('') + '</svg>';
+  }
+  function gmAsma() {
+    var d = GM.docs.asma, me = state.me, o = other();
+    if (!d || !d.word || d.done) {
+      var h = '';
+      if (d && d.done) h += '<p class="gm-st">' + (d.done === 'win' ? (d.setter === me ? gmName(o) + ' kelimeyi buldu.' : 'Kelimeyi buldun! 🎉') : (d.setter === me ? gmName(o) + ' bilemedi.' : 'Bilemedin.')) + '</p><p class="gm-sc">Kelime: <b>' + esc(d.word) + '</b></p>';
+      return h + '<div class="field" style="margin-top:12px"><label for="hmWord">Karşı tarafın bulacağı kelimeyi yaz</label><div class="add-row"><input type="text" id="hmWord" maxlength="14" autocomplete="off" placeholder="Örn. deniz"><button class="btn primary" type="button" data-hmset="1">Başlat</button></div><p class="muted small" id="hmErr" role="alert"></p></div>';
+    }
+    var wrong = hmWrong(d), setter = d.setter === me, g = d.guessed || '';
+    var shown = d.word.split('').map(function (c) { return g.indexOf(c) >= 0 || setter ? c : '_'; }).join(' ');
+    var keys = TR_AL.map(function (c) { return '<button type="button" data-hmk="' + c + '"' + (setter || g.indexOf(c) >= 0 ? ' disabled' : '') + '>' + c.toLocaleUpperCase('tr-TR') + '</button>'; }).join('');
+    return hmFig(wrong) + '<p class="hm-word">' + esc(shown.toLocaleUpperCase('tr-TR')) + '</p><p class="gm-sc">Yanlış: ' + wrong + ' / 6' + (g ? ' · Denenen: ' + esc(g.toLocaleUpperCase('tr-TR').split('').join(' ')) : '') + '</p>' +
+      (setter ? '<p class="gm-st">' + esc(gmName(o)) + ' tahmin ediyor.</p>' : '<div class="hm-keys" style="margin-top:10px">' + keys + '</div>');
+  }
+  function hmSet() {
+    var inp = $('#hmWord'), w = trLow(inp.value.trim()), er = $('#hmErr');
+    if (!/^[a-zçğıöşü]{2,14}$/.test(w)) { er.textContent = 'Sadece harf kullan (2-14 harf, boşluk yok).'; return; }
+    gmSave('asma', { word: w, setter: state.me, guessed: '', done: '', at: Date.now() }, 'Adam asmaca: kelime hazır, tahmin sırası sende.');
+  }
+  function hmGuess(c) {
+    var d = GM.docs.asma; if (!d || d.done || d.setter === state.me || (d.guessed || '').indexOf(c) >= 0) return;
+    var nd = Object.assign({}, d, { guessed: (d.guessed || '') + c, at: Date.now() }), done = '';
+    if (d.word.split('').every(function (x) { return nd.guessed.indexOf(x) >= 0; })) done = 'win'; else if (hmWrong(nd) >= 6) done = 'lose';
+    nd.done = done; gmSave('asma', nd, done === 'win' ? 'Adam asmaca: kelimeyi buldu!' : done === 'lose' ? 'Adam asmaca: bilemedi.' : '');
+  }
+  function renderGames() {
+    var box = $('#gmBox'); if (!box || $('#p-oyun').hidden) return;
+    if (['xox', 'tkm', 'asma'].indexOf(GM.cur) < 0) GM.cur = 'xox';
+    $$('#gmTabs [data-gmtab]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.gmtab === GM.cur ? 'true' : 'false'); });
+    if (box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
+    box.innerHTML = GM.cur === 'xox' ? gmXox() : GM.cur === 'tkm' ? gmTkm() : gmAsma();
+  }
+  window.renderGames = renderGames;
+  $('#p-oyun').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.gmtab) { GM.cur = b.dataset.gmtab; LS.set('posta:gm', GM.cur); renderGames(); }
+    else if (b.dataset.xo != null && b.dataset.xo !== '') xoMove(+b.dataset.xo);
+    else if (b.dataset.xonew) { var d = GM.docs.xox; var first = d && d.first ? (d.first === 'A' ? 'B' : 'A') : 'A'; gmSave('xox', xoNew(first, d && d.score), 'XOX: yeni oyun başladı.'); }
+    else if (b.dataset.rps) rpsPick(b.dataset.rps);
+    else if (b.dataset.hmset) hmSet();
+    else if (b.dataset.hmk) hmGuess(b.dataset.hmk);
+  });
+
+  /* ---------- ESPA'dan yardım (mektup, anı) ---------- */
+  async function espaAsk(prompt) {
+    var fn = null; try { fn = await window.__host.use('fn'); } catch (e) {}
+    if (!fn) throw { code: 'network' };
+    var n = names(), r = await fn.call('super-processor', { messages: [{ role: 'user', content: prompt }], ctx: { nameA: n.A, nameB: n.B, me: authorOf(state.me), days: daysTogether() } });
+    if (!r || !r.reply) throw { code: 'upstream' };
+    return String(r.reply).trim();
+  }
+  function aiErr(e) { return (ESPA_ERR[e && e.code] || ESPA_ERR.network) + (e && e.detail ? ' [' + String(e.detail).slice(0, 120) + ']' : ''); }
+  $('#letAi').addEventListener('click', function () {
+    var b = this, st = $('#letAiSt'), hint = $('#letHint').value.trim();
+    if (b.disabled) return; b.disabled = true; st.textContent = 'ESPA yazıyor…';
+    espaAsk('Ben ' + authorOf(state.me) + ', eşim ' + authorOf(other()) + ' için kısa, samimi ve içten bir mektup taslağı yazmak istiyorum.' + (hint ? ' Konu ya da duygu: ' + hint + '.' : '') + ' Sadece mektup metnini yaz (100-170 kelime), başlık, açıklama ya da imza ekleme.')
+      .then(function (t) { var ta = $('#letText'); ta.value = ta.value.trim() ? ta.value.trim() + '\n\n' + t : t; st.textContent = 'Taslak eklendi. İstediğin gibi değiştirebilirsin.'; })
+      .catch(function (e) { st.textContent = aiErr(e); }).then(function () { b.disabled = false; });
+  });
+  $('#memAi').addEventListener('click', function () {
+    var b = this, st = $('#memAiSt'), title = $('#memTitle').value.trim(), cur = $('#memBody').value.trim();
+    if (!title) { st.textContent = 'Önce anıya bir başlık yaz.'; return; }
+    if (b.disabled) return; b.disabled = true; st.textContent = 'ESPA yazıyor…';
+    espaAsk('Eşimle birlikte yaşadığımız bir anıyı sıcak, kısa bir not olarak yazar mısın? Anının başlığı: ' + title + '.' + ($('#memPlace').value.trim() ? ' Yer: ' + $('#memPlace').value.trim() + '.' : '') + ($('#memDate').value ? ' Tarih: ' + $('#memDate').value + '.' : '') + (cur ? ' Benim notum: ' + cur : '') + ' 2-3 cümle yaz, sadece metni ver. Bilmediğin ayrıntıları uydurma.')
+      .then(function (t) { $('#memBody').value = t.slice(0, 1500); st.textContent = 'Eklendi. İstediğin gibi değiştir.'; })
+      .catch(function (e) { st.textContent = aiErr(e); }).then(function () { b.disabled = false; });
+  });
+
+  /* ---------- Anı kitabı ---------- */
+  function bookYears() { var y = {}; state.memories.forEach(function (m) { var d = parseYMD(m.date); if (d) y[d.y] = 1; }); return Object.keys(y).map(Number).sort(function (a, b) { return b - a; }); }
+  function renderBookInfo() {
+    var sel = $('#bkYear'); if (!sel || $('#p-kitap').hidden) return;
+    var cur = sel.value, ys = bookYears();
+    sel.innerHTML = '<option value="all">Hepsi</option>' + ys.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+    if (cur && (cur === 'all' || ys.indexOf(+cur) >= 0)) sel.value = cur;
+    $('#bkInfo').textContent = state.memories.length ? bookList().length + ' anı kitaba girecek.' : 'Henüz anı yok.';
+  }
+  function bookList() {
+    var y = $('#bkYear').value;
+    return state.memories.filter(function (m) { var d = parseYMD(m.date); return d && (y === 'all' || String(d.y) === y); })
+      .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+  }
+  $('#bkYear').addEventListener('change', renderBookInfo);
+  function bookHtml(list, withPics) {
+    var n = names(), days = daysTogether(), first = list[0] && parseYMD(list[0].date), last = list[list.length - 1] && parseYMD(list[list.length - 1].date);
+    var h = '<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(n.A + ' & ' + n.B) + ' · Anı kitabı</title><style>' +
+      'body{font:17px/1.6 Georgia,serif;color:#222;margin:0;padding:24px;background:#fff}main{max-width:720px;margin:0 auto}' +
+      '.cover{text-align:center;padding:90px 0 60px;page-break-after:always}.cover h1{font-size:44px;margin:0 0 12px}.cover p{color:#666;margin:6px 0}' +
+      '.m{margin:0 0 34px;page-break-inside:avoid}.m .d{font:600 12px/1 system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#a33}.m h2{font-size:26px;margin:6px 0}' +
+      '.m p{margin:6px 0;white-space:pre-wrap}.ph{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:10px}.ph img{width:100%;border-radius:6px;break-inside:avoid}' +
+      '.bar{position:sticky;top:0;background:#fff;padding:10px 0;margin-bottom:10px;text-align:center}.bar button{font:700 16px system-ui,sans-serif;padding:12px 20px;border-radius:10px;border:0;background:#c23f2a;color:#fff}' +
+      '@media print{.bar{display:none}body{padding:0}}</style></head><body><main><div class="bar"><button type="button" onclick="window.print()">Yazdır / PDF olarak kaydet</button></div>' +
+      '<div class="cover"><h1>' + esc(n.A) + ' &amp; ' + esc(n.B) + '</h1><p>Anı kitabı</p>' + (first ? '<p>' + esc(fmtLong(first)) + (last && ymdString(last) !== ymdString(first) ? ' – ' + esc(fmtLong(last)) : '') + '</p>' : '') + (days != null ? '<p>' + days + ' gündür birlikte</p>' : '') + '</div>';
+    list.forEach(function (m) {
+      var d = parseYMD(m.date), pics = withPics ? memPics(m) : [];
+      h += '<section class="m"><div class="d">' + (d ? esc(fmtLong(d)) : '') + (m.place ? ' · ' + esc(m.place) : '') + '</div><h2>' + esc(m.title) + '</h2>' + (m.body ? '<p>' + esc(m.body) + '</p>' : '') +
+        (pics.length ? '<div class="ph">' + pics.map(function (id) { return '<img src="' + blobUrl(id) + '" alt="">'; }).join('') + '</div>' : '') + '</section>';
+    });
+    return h + '</main></body></html>';
+  }
+  $('#bkGo').addEventListener('click', function () {
+    var list = bookList(); if (!list.length) { toast('Bu seçimde anı yok.'); return; }
+    var html = bookHtml(list, $('#bkPics').checked), w = null;
+    try { w = window.open('', '_blank'); } catch (e) {}
+    if (!w) { toast('Açılır pencere engellendi. Tarayıcıdan izin verip tekrar dene.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  });
+  window.renderBookInfo = renderBookInfo;
+
   /* ---------- Parmak izi / yüz tanıma kilidi ---------- */
   var BIO = { locked: false, hiddenAt: 0, busy: false };
   if (LS.get('posta:bio')) { BIO.locked = true; var _bl = document.getElementById('bioLock'); if (_bl) _bl.hidden = false; }
@@ -3034,7 +3335,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   bioPaint();
 
   function renderExtras() {
-    renderExtras2(); renderCalendar(); renderUpcomingHome(); renderWishes(); renderLetters(); renderGifts(); renderDaily(); renderOzet();
+    renderExtras2(); renderCalendar(); renderUpcomingHome(); renderWishes(); renderLetters(); renderGifts(); renderDaily(); renderOzet(); renderCoupons(); renderBookInfo();
   }
   function subX(name, key) {
     state.db.collection(name).onSnapshot(function (snap) {
@@ -3384,7 +3685,8 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     db.collection('medlog').onSnapshot(function (snap) {
       var o = {}; snap.docs.forEach(function (d) { o[d.id] = d.data(); }); MED.log = o; renderMeds();
     }, function () {});
-    subX('events', 'events'); subX('wishes', 'wishes'); subX('letters', 'letters'); subX('answers', 'answers'); subX('moods', 'moods'); subX('items', 'items'); subX('albums', 'albums');
+    subX('events', 'events'); subX('wishes', 'wishes'); subX('letters', 'letters'); subX('answers', 'answers'); subX('moods', 'moods'); subX('items', 'items'); subX('albums', 'albums'); subX('coupons', 'coupons');
+    db.collection('games').onSnapshot(function (snap) { var o = {}; snap.docs.forEach(function (d) { o[d.id] = d.data(); }); GM.docs = o; if (!$('#p-oyun').hidden) renderGames(); }, function () {});
     db.doc('app/meet').onSnapshot(function (snap) { X.meet = snap.exists ? snap.data() : null; if (inMain()) renderMeet(); }, function () {});
     db.collection('seen').onSnapshot(function (snap) {
       var s = {};
