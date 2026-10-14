@@ -173,7 +173,12 @@ try {
     reset: async function (e) { var r = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname }); if (r.error) throw authErr(r.error); },
     updatePw: async function (p) { var r = await sb.auth.updateUser({ password: p }); if (r.error) throw authErr(r.error); }
   };
-  window.__fbResolve({ db: db, assets: assets, auth: auth });
+  var fn = { call: async function (name, body) {
+    var r = await sb.functions.invoke(name, { body: body });
+    if (r.error) { var j = null; try { j = await r.error.context.json(); } catch (e) {} throw { code: (j && j.error) || 'network' }; }
+    return r.data;
+  } };
+  window.__fbResolve({ db: db, assets: assets, auth: auth, fn: fn });
 } catch (e) { console.error(e); window.__fbResolve(null); }
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -514,6 +519,18 @@ dialog { max-height: 90vh; overflow-y: auto; }
 dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 22px; width: min(480px, calc(100% - 32px)); }
 dialog::backdrop { background: rgba(10, 14, 20, .55); }
 dialog h2 { font-size: 24px; font-weight: 800; }
+
+.espa-log{display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:58vh;overflow:auto;padding:4px 2px;margin-bottom:10px}
+.espa-b{max-width:86%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word;line-height:1.45;border:1px solid var(--line)}
+.espa-b.me{align-self:flex-end;background:var(--red);color:var(--on-red);border-color:var(--red)}
+.espa-b.ai{align-self:flex-start;background:var(--surface-2)}
+.espa-b.err{align-self:center;color:var(--muted);font-size:14px;text-align:center;border-style:dashed}
+.espa-drawer{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px;margin-bottom:10px;max-height:40vh;overflow:auto}
+.espa-ch{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 4px;color:var(--ink);font:inherit;cursor:pointer}
+.espa-ch:last-child{border-bottom:0}.espa-ch small{display:block;color:var(--muted)}.espa-ch[aria-current=true]{font-weight:700}
+.espa-empty{margin:auto;text-align:center;color:var(--muted)}
+.espa-form{display:flex;gap:8px;align-items:flex-end}
+.espa-form textarea{flex:1;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 14px;resize:none;max-height:140px}
 </style>
 
 <style id="glass">
@@ -709,6 +726,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <button class="nav-item" type="button" data-tab="mesafe">Mesafe</button>
         <button class="nav-item" type="button" data-tab="cizim">Çizim tahtası</button>
         <button class="nav-item" type="button" data-tab="ilac">İlaç hatırlatıcı</button>
+        <button class="nav-item" type="button" data-tab="espa">ESPA V1.0</button>
       </div>
     </div>
     <div class="nav-group" data-g="diger">
@@ -851,6 +869,21 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <canvas id="bd" class="bd" width="1000" height="1000" aria-label="Ortak çizim tahtası"></canvas>
     <p class="muted small" style="margin-top:8px">İkiniz de aynı tahtaya çizersiniz. Parmağını kaldırınca çizgi karşı tarafta da belirir.</p>
     <p class="muted small" id="bdSt" role="status"></p>
+  </section>
+
+  <!-- ESPA -->
+  <section id="p-espa" data-panel hidden>
+    <div class="sec-head"><h2>ESPA V1.0</h2><span><button class="link-btn" type="button" id="espaList">Sohbetler</button> · <button class="link-btn" type="button" id="espaNew">Yeni</button></span></div>
+    <div class="espa-drawer" id="espaDrawer" hidden>
+      <div class="chips-row" id="espaWho" hidden></div>
+      <div id="espaChats"></div>
+    </div>
+    <div class="espa-log" id="espaLog" aria-live="polite"></div>
+    <form class="espa-form" id="espaForm" autocomplete="off">
+      <textarea id="espaIn" rows="1" maxlength="4000" placeholder="ESPA'ya bir şey sor…" aria-label="Mesajın"></textarea>
+      <button class="btn primary" type="submit" id="espaSend">Gönder</button>
+    </form>
+    <p class="muted small" id="espaNote"></p>
   </section>
 
   <!-- İlaç hatırlatıcı -->
@@ -1630,12 +1663,13 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
     if (window.paintNav) window.paintNav();
     if (tab === 'mesafe' && window.renderMesafe) setTimeout(window.renderMesafe, 0);
     if (tab === 'harita' && window.renderHarita) setTimeout(window.renderHarita, 0);
     if (tab === 'cizim' && window.bdShow) setTimeout(window.bdShow, 0);
+    if (tab === 'espa' && window.espaShow) setTimeout(window.espaShow, 0);
     if (tab === 'ilac' && window.renderMeds) setTimeout(window.renderMeds, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
       if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -2021,7 +2055,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac'], diger: ['muzik', 'uygulama'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'espa'], diger: ['muzik', 'uygulama'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -2885,8 +2919,78 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   setInterval(medSchedule, 30 * 60000);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) medSchedule(); });
 
+
+  /* ---------- ESPA V1.0 ---------- */
+  var ESPA = { id: '', msgs: [], busy: false, chats: [], unsub: null, who: 'me', readonly: false };
+  function espaNewId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function espaNote() {
+    var n = names(), el = $('#espaNote'); if (!el) return;
+    el.textContent = 'Yazdıkların yanıt üretmek için yapay zekâ servisine gönderilir. Sohbetler kaydedilir' + (isAdmin() ? ' ve ' + (n.B || 'diğer kişi') + '’in sohbetlerini de bu ekrandan görebilirsin.' : '; ' + (n.A || 'yönetici') + ' bu sohbetleri görebilir.');
+  }
+  function espaPaint() {
+    var el = $('#espaLog'); if (!el) return;
+    if (!ESPA.msgs.length) { el.innerHTML = '<div class="espa-empty"><p><b>ESPA V1.0</b></p><p>Merhaba, ben ESPA. Bize özel yapay zekâ asistanınım. Ne konuşalım?</p></div>'; }
+    else el.innerHTML = ESPA.msgs.map(function (m) { return '<div class="espa-b ' + (m.role === 'user' ? 'me' : m.role === 'err' ? 'err' : 'ai') + '">' + esc(m.content) + '</div>'; }).join('') + (ESPA.busy ? '<div class="espa-b ai">…</div>' : '');
+    el.scrollTop = el.scrollHeight;
+    $('#espaForm').hidden = ESPA.readonly;
+  }
+  function espaFmt(t) { try { return new Date(t).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  function espaDrawer() {
+    var box = $('#espaChats'), n = names(), who = $('#espaWho');
+    who.hidden = !isAdmin();
+    if (isAdmin()) who.innerHTML = '<button class="btn' + (ESPA.who === 'me' ? ' primary' : '') + '" type="button" data-who="me">Benim</button><button class="btn' + (ESPA.who === 'other' ? ' primary' : '') + '" type="button" data-who="other">' + esc(n.B || 'Diğer') + '</button>';
+    var want = isAdmin() && ESPA.who === 'other' ? 'B' : (isAdmin() ? 'A' : state.me);
+    var list = ESPA.chats.filter(function (c) { return c.data.slot === want; });
+    box.innerHTML = list.length ? list.map(function (c) { var d = c.data; return '<button class="espa-ch" type="button" data-cid="' + esc(c.id) + '"' + (c.id === (want + '_' + ESPA.id) ? ' aria-current="true"' : '') + '>' + esc(d.title || 'Sohbet') + '<small>' + esc(espaFmt(d.updatedAt)) + ' · ' + ((d.messages || []).length) + ' mesaj</small></button>'; }).join('') : '<p class="muted small">Henüz sohbet yok.</p>';
+  }
+  function espaSub() {
+    if (ESPA.unsub || !state.db) return;
+    ESPA.unsub = state.db.collection('espachat').orderBy('updatedAt', 'desc').onSnapshot(function (snap) {
+      ESPA.chats = snap.docs.map(function (d) { return { id: d.id, data: d.data() }; });
+      if (!$('#espaDrawer').hidden) espaDrawer();
+    }, function () {});
+  }
+  window.espaShow = function () {
+    espaNote(); espaSub();
+    if (!ESPA.id) { ESPA.id = espaNewId(); ESPA.msgs = []; ESPA.readonly = false; }
+    espaPaint();
+  };
+  var ESPA_ERR = { auth: 'Oturumun dolmuş olabilir, çıkış yapıp tekrar gir.', forbidden: 'Bu asistan yalnızca ikinize açık.', rate: 'Bu saat için limit doldu, biraz sonra tekrar dene.', not_configured: 'ESPA henüz hazır değil (kurulum tamamlanmamış).', upstream: 'ESPA şu an cevap veremedi, tekrar dene.', bad_request: 'Mesaj gönderilemedi.', network: 'Bağlantı kurulamadı. İnternetini kontrol et.' };
+  async function espaSend(text) {
+    if (ESPA.busy || ESPA.readonly) return;
+    var fn = null; try { fn = await window.__host.use('fn'); } catch (e) {}
+    ESPA.msgs.push({ role: 'user', content: text }); ESPA.busy = true; espaPaint();
+    var hist = ESPA.msgs.filter(function (m) { return m.role === 'user' || m.role === 'assistant'; }).slice(-60).map(function (m) { return { role: m.role, content: m.content }; });
+    var n = names(), id = ESPA.id;
+    try {
+      if (!fn) throw { code: 'network' };
+      var r = await fn.call('espa', { chatId: id, messages: hist, ctx: { nameA: n.A, nameB: n.B, me: authorOf(state.me), days: daysTogether() } });
+      if (!r || !r.reply) throw { code: 'upstream' };
+      if (id === ESPA.id) ESPA.msgs.push({ role: 'assistant', content: String(r.reply) });
+    } catch (e) {
+      if (id === ESPA.id) ESPA.msgs.push({ role: 'err', content: ESPA_ERR[e && e.code] || ESPA_ERR.network });
+    }
+    ESPA.busy = false; espaPaint();
+  }
+  $('#espaForm').addEventListener('submit', function (ev) {
+    ev.preventDefault(); var t = $('#espaIn'), v = t.value.trim(); if (!v) return; t.value = ''; t.style.height = ''; espaSend(v);
+  });
+  $('#espaIn').addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 140) + 'px'; });
+  $('#espaNew').addEventListener('click', function () { if (ESPA.busy) return; ESPA.id = espaNewId(); ESPA.msgs = []; ESPA.readonly = false; $('#espaDrawer').hidden = true; espaPaint(); });
+  $('#espaList').addEventListener('click', function () { var d = $('#espaDrawer'); d.hidden = !d.hidden; if (!d.hidden) { if (ESPA.unsub) { ESPA.unsub(); ESPA.unsub = null; } espaSub(); espaDrawer(); } });
+  $('#espaWho').addEventListener('click', function (e) { var b = e.target.closest('[data-who]'); if (!b) return; ESPA.who = b.dataset.who; espaDrawer(); });
+  $('#espaChats').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cid]'); if (!b || ESPA.busy) return;
+    var c = ESPA.chats.filter(function (x) { return x.id === b.dataset.cid; })[0]; if (!c) return;
+    var mine = c.data.slot === state.me;
+    ESPA.id = c.id.slice(2); ESPA.msgs = (c.data.messages || []).map(function (m) { return { role: m.role, content: m.content }; });
+    ESPA.readonly = !mine; $('#espaDrawer').hidden = true; espaPaint();
+    if (!mine) toast((c.data.ownerName || 'Diğer kişi') + '’in sohbeti (sadece okuma).');
+  });
+
   /* ---------- Parmak izi / yüz tanıma kilidi ---------- */
   var BIO = { locked: false, hiddenAt: 0, busy: false };
+  if (LS.get('posta:bio')) { BIO.locked = true; var _bl = document.getElementById('bioLock'); if (_bl) _bl.hidden = false; }
   function b64u(buf) { var s = ''; new Uint8Array(buf).forEach(function (c) { s += String.fromCharCode(c); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   function unb64u(t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
   function bioOn() { return !!LS.get('posta:bio'); }
@@ -2916,8 +3020,10 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   document.addEventListener('visibilitychange', function () {
     if (!bioOn()) return;
     if (document.hidden) BIO.hiddenAt = Date.now();
-    else if (BIO.hiddenAt && Date.now() - BIO.hiddenAt > 60000 && state.authUser) { BIO.hiddenAt = 0; bioShow(true); }
+    else if (BIO.hiddenAt && Date.now() - BIO.hiddenAt > 8000 && state.authUser) { BIO.hiddenAt = 0; bioShow(true); }
   });
+  window.addEventListener('pageshow', function (e) { if (e.persisted && bioOn() && state.authUser) bioShow(true); });
+  window.addEventListener('pagehide', function () { if (bioOn()) BIO.hiddenAt = Date.now(); });
   $('#bioToggle').addEventListener('click', function () {
     var st = $('#bioSt');
     if (bioOn()) { LS.set('posta:bio', ''); BIO.locked = false; bioPaint(); toast('Kilit kapatıldı.'); return; }
