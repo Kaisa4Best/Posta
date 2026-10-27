@@ -22,6 +22,16 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<style>
+#splash{position:fixed;inset:0;z-index:2147483000;background:#0b121d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:opacity .6s ease;pointer-events:none;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#splash.out{opacity:0}
+#splash .sp-logo{animation:spIn .9s cubic-bezier(.2,.8,.2,1) both}
+#splash .sp-name{margin:10px 0 0;color:#f2f5fa;font-size:26px;font-weight:800;letter-spacing:.04em;animation:spUp .8s .25s both}
+#splash .sp-pow{margin:0;color:#8fa0b8;font-size:13px;letter-spacing:.16em;text-transform:uppercase;animation:spUp .8s .45s both}
+@keyframes spIn{from{opacity:0;transform:scale(.8) rotate(-6deg)}to{opacity:1;transform:none}}
+@keyframes spUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#splash *{animation:none!important}}
+</style>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -54,6 +64,7 @@ try {
     return { code: 'error', message: m };
   };
   // Yerel dinleyiciler: yazma sonrası anında yenile
+  var ROOM = '';
   var locals = [];
   var bump = function (path) {
     var col = path.split('/')[0];
@@ -62,40 +73,43 @@ try {
   var rowToSnap = function (r) { return { id: r.path.split('/').pop(), data: function () { return r.data; }, metadata: { hasPendingWrites: false } }; };
 
   var docRef = function (path) {
+    var rm = ROOM;
     var self = {
       onSnapshot: function (cb, eb) {
         var alive = true, run = async function () {
-          var r = await sb.from('docs').select('data').eq('path', path).maybeSingle();
+          var r = await sb.from('docs').select('data').eq('room', rm).eq('path', path).maybeSingle();
           if (!alive) return;
           if (r.error) { if (eb) eb(mapErr(r.error)); return; }
           cb({ exists: !!r.data, id: path.split('/').pop(), data: function () { return r.data ? r.data.data : undefined; } });
         };
         var l = { path: path, col: null, run: run }; locals.push(l);
         var ch = sb.channel('d:' + path + ':' + Math.random().toString(36).slice(2))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'path=eq.' + path }, run)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'room=eq.' + rm }, function (p) { var o = p && ((p.new && p.new.path) ? p.new : p.old); if (!o || !o.path || o.path === path) run(); })
+          .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'docs' }, function (p) { var o = p && p.old; if (!o || !o.path || (o.path === path && (!o.room || o.room === rm))) run(); })
           .subscribe();
         run();
         return function () { alive = false; locals.splice(locals.indexOf(l), 1); sb.removeChannel(ch); };
       },
-      set: async function (d) { var r = await sb.from('docs').upsert({ path: path, col: path.split('/')[0], id: path.split('/').pop(), data: d, updated_at: new Date().toISOString() }); if (r.error) throw mapErr(r.error); bump(path); },
+      set: async function (d) { var r = await sb.from('docs').upsert({ room: rm, path: path, col: path.split('/')[0], id: path.split('/').pop(), data: d, updated_at: new Date().toISOString() }, { onConflict: 'room,path' }); if (r.error) throw mapErr(r.error); bump(path); },
       update: async function (patch) {
-        var g = await sb.from('docs').select('data').eq('path', path).maybeSingle();
+        var g = await sb.from('docs').select('data').eq('room', rm).eq('path', path).maybeSingle();
         if (g.error) throw mapErr(g.error);
         if (!g.data) throw { code: 'not_found' };
-        var r = await sb.from('docs').update({ data: Object.assign({}, g.data.data, patch), updated_at: new Date().toISOString() }).eq('path', path);
+        var r = await sb.from('docs').update({ data: Object.assign({}, g.data.data, patch), updated_at: new Date().toISOString() }).eq('room', rm).eq('path', path);
         if (r.error) throw mapErr(r.error); bump(path);
       },
-      delete: async function () { var r = await sb.from('docs').delete().eq('path', path); if (r.error) throw mapErr(r.error); bump(path); }
+      delete: async function () { var r = await sb.from('docs').delete().eq('room', rm).eq('path', path); if (r.error) throw mapErr(r.error); bump(path); }
     };
     return self;
   };
   var colRef = function (name) {
+    var rm = ROOM;
     var mk = function (ord, lim) {
       return {
         onSnapshot: function (cb, eb) {
           var alive = true, prev = null;
           var run = async function () {
-            var r = await sb.from('docs').select('path,data').eq('col', name);
+            var r = await sb.from('docs').select('path,data').eq('room', rm).eq('col', name);
             if (!alive) return;
             if (r.error) { if (eb) eb(mapErr(r.error)); return; }
             var rows = r.data || [];
@@ -108,8 +122,8 @@ try {
           };
           var l = { path: null, col: name, run: run }; locals.push(l);
           var ch = sb.channel('c:' + name + ':' + Math.random().toString(36).slice(2))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'col=eq.' + name }, run)
-            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'docs' }, function (p) { var o = p && p.old; if (!o || !o.path || o.path.indexOf(name + '/') === 0) run(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'room=eq.' + rm }, function (p) { var o = p && ((p.new && p.new.col) ? p.new : p.old); if (!o || !o.col || o.col === name) run(); })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'docs' }, function (p) { var o = p && p.old; if (!o || !o.path || (o.path.indexOf(name + '/') === 0 && (!o.room || o.room === rm))) run(); })
             .subscribe();
           run();
           return function () { alive = false; locals.splice(locals.indexOf(l), 1); sb.removeChannel(ch); };
@@ -117,7 +131,7 @@ try {
         add: async function (d) {
           var id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/-/g, '');
           var path = name + '/' + id;
-          var r = await sb.from('docs').insert({ path: path, col: name, id: id, data: d }); if (r.error) throw mapErr(r.error); bump(path);
+          var r = await sb.from('docs').insert({ room: rm, path: path, col: name, id: id, data: d }); if (r.error) throw mapErr(r.error); bump(path);
           return { id: id };
         },
         orderBy: function (f, dir) { return mk([f, dir || 'asc'], lim); },
@@ -126,7 +140,13 @@ try {
     };
     return mk(null, null);
   };
-  var db = { doc: docRef, collection: colRef };
+  var db = { doc: docRef, collection: colRef,
+    setRoom: function (r) { ROOM = String(r || ''); },
+    rpc: async function (name, args) {
+      var r = await sb.rpc(name, args || {});
+      if (r.error) { var m = String(r.error.message || ''); throw { code: m === 'kod' ? 'bad_code' : m === 'zaten' ? 'already' : m === 'izin' ? 'denied' : 'error', message: m }; }
+      return r.data;
+    } };
 
   var rand = function () { var a = new Uint8Array(16); crypto.getRandomValues(a); return Array.prototype.map.call(a, function (x) { return x.toString(16).padStart(2, '0'); }).join(''); };
   var assets = {
@@ -634,6 +654,22 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true">
+  <svg class="sp-logo" viewBox="0 0 120 120" width="112" height="112" role="img" aria-label="Kaisa4Best">
+    <defs>
+      <linearGradient id="spG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f8cff"/><stop offset="1" stop-color="#e2553d"/></linearGradient>
+      <linearGradient id="spK" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfd8e6"/></linearGradient>
+    </defs>
+    <circle cx="60" cy="60" r="55" fill="#121c2b" stroke="url(#spG)" stroke-width="3.5"/>
+    <circle cx="60" cy="60" r="46" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="1"/>
+    <path d="M42 30v60" stroke="url(#spK)" stroke-width="10" stroke-linecap="round"/>
+    <path d="M80 32L47 62l33 28" stroke="url(#spK)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M86 24l2.6 6.4 6.4 2.6-6.4 2.6L86 42l-2.6-6.4-6.4-2.6 6.4-2.6z" fill="#ffd166"/>
+  </svg>
+  <p class="sp-name">Kaisa4Best</p>
+  <p class="sp-pow">Powered by Kaisa4Best</p>
+</div>
+<script>setTimeout(function () { var s = document.getElementById('splash'); if (!s) return; s.classList.add('out'); setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, 700); }, 1700);</script>
 <div class="airmail" aria-hidden="true"><div class="hearts" id="hearts"></div></div>
 <div class="wrap">
 
@@ -658,6 +694,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     <h1 class="big-title" id="suTitle" style="margin-top:8px">Önce birkaç şeyi kuralım</h1>
     <p class="muted" id="suIntro" style="margin-top:12px"></p>
     <form class="form" id="setupForm" autocomplete="off" novalidate>
+      <div class="field" id="suCodeRow"><label for="suCode">Davet kodun</label><input type="text" id="suCode" maxlength="16" autocapitalize="characters" autocomplete="off"><p class="muted small">Kodu sana siteyi paylaşan kişi verir.</p></div>
       <div class="form" id="suBasics" style="margin-top:0">
         <div class="row2">
           <div class="field"><label for="suA">Senin adın</label><input type="text" id="suA" maxlength="24"></div>
@@ -666,13 +703,13 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <div class="field"><label for="suDate">Birlikte olduğunuz ilk gün</label><input type="date" id="suDate"><p class="muted small">Sayaç bu günden bugüne geçen günleri gösterir.</p></div>
       </div>
       <div class="field"><label for="suMail">Senin e-postan</label><input type="email" id="suMail" inputmode="email" autocomplete="off"></div>
-      <div class="row2">
+      <div class="row2" id="suPwRow">
         <div class="field"><label for="suPw">Şifren (en az 6 karakter)</label><input type="password" id="suPw" autocomplete="new-password"></div>
         <div class="field"><label for="suPw2">Şifre tekrar</label><input type="password" id="suPw2" autocomplete="new-password"></div>
       </div>
       <div class="field"><label for="suMailB">Sevgilinin e-postası</label><input type="email" id="suMailB" inputmode="email" autocomplete="off"><p class="muted small">Sevgilin giriş ekranında bu e-postayla “İlk kez giriyorum” diyerek şifresini belirler.</p></div>
       <p class="err" id="suErr" role="alert"></p>
-      <div class="actions"><button class="btn primary" type="submit" id="suBtn">Siteyi kur</button></div>
+      <div class="actions"><button class="btn primary" type="submit" id="suBtn">Odamı kur</button><button class="link-btn" type="button" id="suBack">Geri</button></div>
     </form>
   </div>
 </section>
@@ -706,7 +743,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <div class="field" id="lgRepeatRow" hidden><label for="lgPw2">Şifre tekrar</label><input type="password" id="lgPw2" autocomplete="new-password"></div>
       <label class="check"><input type="checkbox" id="lgRemember" checked> Bu cihazda hatırla</label>
       <p class="err" id="lgErr" role="alert"></p>
-      <div class="actions"><button class="btn primary" type="submit" id="lgSubmit">Giriş yap</button><button class="link-btn" type="button" id="lgFirst">İlk kez giriyorum</button><button class="link-btn" type="button" id="lgForgot">Şifremi unuttum</button></div>
+      <div class="actions"><button class="btn primary" type="submit" id="lgSubmit">Giriş yap</button><button class="link-btn" type="button" id="lgFirst">İlk kez giriyorum</button><button class="link-btn" type="button" id="lgForgot">Şifremi unuttum</button><button class="link-btn" type="button" id="lgNew">Davet kodum var, yeni oda aç</button></div>
     </form>
     </div>
   </div>
@@ -1160,6 +1197,12 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <div class="actions"><button class="btn" type="button" id="btnBackup">Yedeği indir</button></div>
       <p class="muted small" id="backupSt" role="status"></p>
     </div>
+    <div class="field" id="invBox" hidden>
+      <label>Davet kodları</label>
+      <p class="muted small">Arkadaşların bu kodla kendi odasını açar. Her kod yalnızca bir kez kullanılır.</p>
+      <div class="actions"><button class="btn" type="button" id="invMake">Yeni kod oluştur</button></div>
+      <div id="invList" class="muted small" style="margin-top:8px"></div>
+    </div>
     <div class="field"><label for="sePw">Yeni şifre (en az 6 karakter, değiştirmek istemezsen boş bırak)</label><input type="password" id="sePw" autocomplete="new-password"></div>
     <p class="err" id="seErr" role="alert"></p>
     <div class="actions"><button class="btn primary" type="submit">Kaydet</button><button class="btn" type="button" id="seCancel">Kapat</button></div>
@@ -1205,7 +1248,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   var ID_RE = /^[0-9a-f]{32}$/;
 
   var state = {
-    db: null, assets: null, settings: undefined,
+    db: null, assets: null, settings: undefined, room: null, features: {}, roomSeq: 0,
     memories: [], todos: [], tracks: [],
     viewer: { isOwner: false, name: '', email: '', avatar: '', key: 'guest' },
     me: 'A', email: '', accounts: undefined, session: null, welcome: [],
@@ -1330,31 +1373,36 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   function route() {
     if (!state.db || !state.auth) { show('nodb'); return; }
     var st = state.settings, u = state.authUser;
-    if (st === undefined || u === undefined) { show('loading'); return; }
+    if (u === undefined) { show('loading'); return; }
     if (!u) {
-      if (st === null) { prepSetup(true); show('setup'); }
-      else { if ($('#v-login').hidden) prepLogin(); renderLoginArt(); show('login'); audio.pause(); }
+      if (state.setupNew) { prepSetup(); show('setup'); return; }
+      if ($('#v-login').hidden) prepLogin(); renderLoginArt(); show('login'); audio.pause();
       return;
     }
     var m = state.members;
-    if (m === undefined) { show('loading'); return; }
+    if (m === undefined || st === undefined) { show('loading'); return; }
     if (m === 'denied') {
-      gate({ title: 'Bu hesaba izin verilmedi', text: 'Bu e-posta sitenin iki hesabından biri değil. Doğru e-postayla giriş yapmayı dene.', label: 'Çıkış yap', fn: doLogout });
+      gate({ title: 'Odan yüklenemedi', text: 'Sunucu güncellemesi (SQL) yapılmamış olabilir ya da bağlantı koptu. Sayfayı yenile.', label: 'Çıkış yap', fn: doLogout });
       return;
     }
-    if (m === null || st === null) { prepSetup(st === null); show('setup'); return; }
+    if (m === null || st === null) { prepSetup(); show('setup'); return; }
     state.me = u.email === m.admin ? 'A' : 'B'; state.email = u.email;
     if (!state.started && state.startData) { state.started = true; state.startData(); }
     enter();
     if (state.recovery) { state.recovery = false; setTimeout(function () { $('#btnSettings').click(); $('#seErr').textContent = 'Yeni şifreni yaz ve Kaydet’e bas.'; $('#sePw').focus(); }, 300); }
   }
-  function prepSetup(full) {
-    state.setupFull = full;
-    $('#suBasics').hidden = !full;
+  function prepSetup() {
+    state.setupFull = true;
     var u = state.authUser;
-    $('#suTitle').textContent = full ? 'Önce birkaç şeyi kuralım' : 'Yönetici hesabını tamamla';
-    $('#suIntro').textContent = 'Siteyi sen kuruyorsun, senin hesabın yönetici hesabı olur. Sevgilin giriş ekranında “İlk kez giriyorum” diyerek kendi şifresini belirler.' + (u ? ' Şu an ' + u.email + ' ile giriş yaptın.' : '');
-    if (u) { $('#suMail').value = u.email; }
+    $('#suBasics').hidden = false;
+    $('#suCodeRow').hidden = !!state.room;
+    $('#suTitle').textContent = state.room ? 'Kurulumu tamamla' : 'Kendi odanı kuralım';
+    $('#suIntro').textContent = state.room ? 'Odanın bilgilerini yaz.' :
+      (u ? 'Bu e-posta henüz bir odaya bağlı değil. Davet kodun varsa kendi odanı kur. Sevgilin seni zaten eklediyse, e-postayı onun yazdığı gibi kullandığından emin ol.'
+         : 'Site davetle çalışır. Davet kodunu, sevgilinin e-postasını ve kendi bilgilerini yaz. İkiniz de aynı odaya girersiniz, başka kimse odanızı göremez.');
+    if (u) { $('#suMail').value = u.email; $('#suMail').readOnly = true; } else { $('#suMail').readOnly = false; }
+    $('#suPwRow').hidden = !!u;
+    $('#suBack').textContent = u ? 'Çıkış yap' : 'Geri';
     $('#suDate').max = ymdString(todayYMD());
   }
   var firstTime = false;
@@ -1390,7 +1438,15 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   /* ---------- Çizim ---------- */
+  function featApply() {
+    var on = !!(state.features && state.features.espa);
+    var nv = document.querySelector('[data-tab="espa"]'); if (nv) nv.hidden = !on;
+    var m1 = $('#memAi'), m2 = $('#letHint');
+    if (m1 && m1.closest('p')) m1.closest('p').hidden = !on;
+    if (m2 && m2.closest('.field')) m2.closest('.field').hidden = !on;
+  }
   function renderAll() {
+    featApply();
     renderHeader(); renderHero(); renderHome(); renderMemories(); renderTodos(); renderNotes(); renderTracks(); renderPlayer(); renderExtras(); applyTab();
     syncAssetsUI();
   }
@@ -1657,6 +1713,11 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       else h += '<p class="muted small">Yönetici etkinleştirince burada kurulum adımları görünür.</p>';
     } else {
       var mine = pushTopic(state.me);
+      if (window.PostaApp) {
+        try { window.PostaApp.setTopic(mine); } catch (x) {}
+        h = '<p class="muted small" style="margin-top:10px">Bu uygulamada bildirimler otomatik açık. ntfy uygulamasını kurmana gerek yok. Zaten kurduysan ve aynı bildirimi iki kez alıyorsan ntfy’deki aboneliği sil.</p>' +
+          '<div class="actions"><button class="btn" type="button" data-push="test">Test bildirimi gönder</button></div>' + hwHtml();
+      } else
       h = '<ol class="steps">' +
         '<li>Telefonuna <b>ntfy</b> uygulamasını kur (ücretsiz): <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a> · <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a></li>' +
         '<li>Uygulamayı aç, <b>+</b> düğmesine bas, aşağıdaki konu adını yapıştır ve <b>Subscribe</b> de. Sunucu kısmına dokunma, olduğu gibi kalsın.</li>' +
@@ -1951,18 +2012,23 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
   $('#gateBtn').addEventListener('click', function () { if (gateAction) gateAction(); });
 
-  // Kurulum (yönetici hesabı)
+  // Kurulum (oda kurma)
+  $('#suBack').addEventListener('click', function () {
+    if (state.authUser) { doLogout(); return; }
+    state.setupNew = false; route();
+  });
+  $('#lgNew').addEventListener('click', function () { state.setupNew = true; route(); });
   $('#setupForm').addEventListener('submit', async function (e) {
     e.preventDefault();
-    var full = !!state.setupFull, err = $('#suErr'); err.textContent = '';
+    var err = $('#suErr'); err.textContent = '';
     var a = $('#suA').value.trim(), b = $('#suB').value.trim(), d = $('#suDate').value;
     var mail = normEmail($('#suMail').value), mailB = normEmail($('#suMailB').value);
     var p1 = $('#suPw').value, p2 = $('#suPw2').value, signed = !!state.authUser;
-    if (full) {
-      var start = parseYMD(d);
-      if (!a || !b) { err.textContent = 'İki ismi de yaz.'; return; }
-      if (!start || daysBetween(start, todayYMD()) < 0) { err.textContent = 'Geçmişte bir tarih seç.'; return; }
-    }
+    var code = ($('#suCode').value || '').trim();
+    var start = parseYMD(d);
+    if (!state.room && !code) { err.textContent = 'Davet kodunu yaz.'; return; }
+    if (!a || !b) { err.textContent = 'İki ismi de yaz.'; return; }
+    if (!start || daysBetween(start, todayYMD()) < 0) { err.textContent = 'Geçmişte bir tarih seç.'; return; }
     if (!okEmail(mail)) { err.textContent = 'Kendi e-postanı doğru yaz.'; return; }
     if (!okEmail(mailB)) { err.textContent = 'Sevgilinin e-postasını doğru yaz.'; return; }
     if (mail === mailB) { err.textContent = 'İki e-posta farklı olmalı.'; return; }
@@ -1977,10 +2043,18 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         catch (ex) { if (ex && ex.code === 'auth/email-already-in-use') await state.auth.signIn(mail, p1, true); else throw ex; }
       }
       LS.set('posta:lastmail', mail);
+      if (!state.room) {
+        var rid = await state.db.rpc('create_room', { p_code: code });
+        state.roomSeq++;
+        state.setupNew = false;
+        state.bindRoom({ room: rid, admin: true, features: {} });
+      }
       await state.db.doc('app/members').set({ admin: mail, partner: mailB, createdAt: Date.now() });
-      if (full) await state.db.doc('app/settings').set({ nameA: a, nameB: b, start: d, playlistUrl: '', createdAt: Date.now() });
+      await state.db.doc('app/settings').set({ nameA: a, nameB: b, start: d, playlistUrl: '', createdAt: Date.now() });
     } catch (ex) {
-      err.textContent = ex && ex.code === 'permission_denied' ? 'Kurulum zaten yapılmış olabilir. Sayfayı yenileyip giriş yap.' : authErr(ex);
+      err.textContent = ex && ex.code === 'bad_code' ? 'Davet kodu geçersiz ya da daha önce kullanılmış.'
+        : ex && ex.code === 'already' ? 'Bu hesap zaten bir odaya bağlı. Sayfayı yenile.'
+        : ex && ex.code === 'permission_denied' ? 'Kurulum yapılamadı. Sayfayı yenileyip tekrar dene.' : authErr(ex);
     }
     btn.disabled = false;
   });
@@ -2114,6 +2188,29 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     }
   });
 
+  /* ---------- Davet kodları ---------- */
+  function invPaint(rows) {
+    var box = $('#invList'); if (!box) return;
+    box.innerHTML = (rows || []).map(function (r) {
+      return '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line)"><span><b style="font-family:var(--mono);letter-spacing:.08em">' + esc(r.code) + '</b> · ' + (r.used_by ? 'kullanıldı: ' + esc(r.used_by) : 'kullanılmadı') + '</span>' +
+        (r.used_by ? '' : '<button class="link-btn" type="button" data-invcopy="' + esc(r.code) + '">Kopyala</button>') + '</div>';
+    }).join('') || 'Henüz kod yok.';
+  }
+  function invLoad() {
+    var ok = !!(state.features && state.features.invite) && isAdmin();
+    $('#invBox').hidden = !ok; if (!ok) return;
+    state.db.rpc('list_invites').then(invPaint, function () { $('#invList').textContent = 'Kodlar alınamadı.'; });
+  }
+  $('#btnSettings').addEventListener('click', invLoad);
+  $('#invMake').addEventListener('click', function () {
+    state.db.rpc('make_invite').then(invLoad, function () { toast('Kod oluşturulamadı.'); });
+  });
+  $('#invList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-invcopy]'); if (!b) return;
+    var txt = 'Posta Kutumuz davet kodun: ' + b.dataset.invcopy + '\nSite: ' + location.href.split('#')[0].split('?')[0];
+    try { navigator.clipboard.writeText(txt).then(function () { toast('Kopyalandı.'); }, function () { toast('Kopyalanamadı.'); }); } catch (x) { toast('Kopyalanamadı.'); }
+  });
+
   /* ---------- Açık / koyu mod ---------- */
   function themeNow() {
     var t = document.documentElement.getAttribute('data-theme');
@@ -2189,7 +2286,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     renderLoginArt();
   }
   function renderLoginArt() {
-    var s = state.settings, has = $$('#loginShow img').length > 0 && !$('#loginShow').hidden;
+    var s = state.settings || (!state.authUser && state.artCache && state.artCache.s) || null, has = $$('#loginShow img').length > 0 && !$('#loginShow').hidden;
     if (!has) $('#lgArt').classList.remove('has-photo');
     else if ($$('#loginShow img').some(function (i) { return i.complete && i.naturalWidth > 0; })) $('#lgArt').classList.add('has-photo');
     has = $('#lgArt').classList.contains('has-photo');
@@ -3712,27 +3809,53 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     if (!auth) { show('nodb'); return; }
     state.auth = auth;
     var onErr = function (e) { toast('Veriler alınamadı. Sayfayı yenile.'); };
-    db.doc('app/settings').onSnapshot(function (snap) {
-      state.settings = snap.exists ? snap.data() : null; route(); if (inMain()) renderPush();
-      if (state.settings && state.settings.ntfyBase && isAdmin() && state.db) { state.db.doc('app/settings').update({ ntfyBase: '' }).catch(function () {}); }
-    }, onErr);
-    var membersUnsub = null;
+    try { var ac = JSON.parse(LS.get('posta:art') || 'null'); if (ac && ac.s) { state.artCache = ac; state.welcome = Array.isArray(ac.w) ? ac.w : []; } } catch (e) {}
+    function artSave() {
+      try {
+        var st0 = state.settings; if (!st0 || !state.authUser) return;
+        LS.set('posta:art', JSON.stringify({ s: { nameA: st0.nameA, nameB: st0.nameB, start: st0.start }, w: (state.welcome || []).filter(function (w) { return ID_RE.test(w.assetId || ''); }).map(function (w) { return { assetId: w.assetId, createdAt: w.createdAt || 0 }; }) }));
+      } catch (e) {}
+    }
+    var roomUnsubs = [];
+    state.bindRoom = function (info) {
+      roomUnsubs.forEach(function (f) { try { f(); } catch (e) {} }); roomUnsubs = [];
+      state.room = info && info.room ? info.room : null; state.features = (info && info.features) || {};
+      state.settings = undefined; state.members = undefined; state.welcome = [];
+      db.setRoom(state.room || '');
+      if (!state.room) { state.settings = null; state.members = null; route(); return; }
+      roomUnsubs.push(db.doc('app/settings').onSnapshot(function (snap) {
+        state.settings = snap.exists ? snap.data() : null; artSave(); route(); if (inMain()) renderPush();
+        if (state.settings && state.settings.ntfyBase && isAdmin() && state.db) { state.db.doc('app/settings').update({ ntfyBase: '' }).catch(function () {}); }
+      }, onErr));
+      roomUnsubs.push(db.doc('app/members').onSnapshot(function (snap) {
+        state.members = snap.exists ? snap.data() : null; route();
+      }, function () { state.members = 'denied'; route(); }));
+      roomUnsubs.push(db.collection('welcome').onSnapshot(function (snap) {
+        state.welcome = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+          .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+        artSave(); renderShow(); renderWelcomeAdmin(); if (inMain()) renderHomeShow();
+      }, onErr));
+    };
     auth.onChange(function (u, ev) {
       if (ev === 'PASSWORD_RECOVERY') state.recovery = true;
       if (window.bioAuth) window.bioAuth(u, ev);
       state.authUser = u; state.viewer = { isOwner: false, name: '', email: u ? u.email : '', avatar: '', key: 'u' };
-      if (membersUnsub) { membersUnsub(); membersUnsub = null; }
-      state.members = undefined;
-      if (u) membersUnsub = db.doc('app/members').onSnapshot(function (snap) {
-        state.members = snap.exists ? snap.data() : null; route();
-      }, function () { state.members = 'denied'; route(); });
+      var seq = ++state.roomSeq;
+      if (!u) {
+        state.bindRoom(null); state.settings = null; state.members = undefined;
+        state.welcome = state.artCache && state.artCache.w ? state.artCache.w : [];
+        renderShow(); route(); return;
+      }
+      state.members = undefined; state.settings = undefined;
+      db.rpc('my_room').then(function (info) {
+        if (seq !== state.roomSeq) return;
+        state.bindRoom(info && info.room ? info : null);
+      }, function () {
+        if (seq !== state.roomSeq) return;
+        state.settings = null; state.members = 'denied'; route();
+      });
       route();
     });
-    db.collection('welcome').onSnapshot(function (snap) {
-      state.welcome = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
-        .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
-      renderShow(); renderWelcomeAdmin(); if (inMain()) renderHomeShow();
-    }, onErr);
     state.startData = function () {
     db.collection('memories').onSnapshot(function (snap) {
       state.memories = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
