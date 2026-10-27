@@ -156,7 +156,8 @@ try {
       if (r.error) { var m = String(r.error.message || ''); throw { code: /size|exceed/i.test(m) ? 'too_large' : /mime|type/i.test(m) ? 'unsupported_type' : /security|policy|permission/i.test(m) ? 'not_granted' : 'upload_failed' }; }
       return { id: id };
     },
-    delete: async function (id) { await sb.storage.from('u').remove([id]); }
+    delete: async function (id) { await sb.storage.from('u').remove([id]); },
+    deleteMany: async function (ids) { for (var i = 0; i < ids.length; i += 100) { await sb.storage.from('u').remove(ids.slice(i, i + 100)); } }
   };
 
   var authErr = function (e) {
@@ -1204,6 +1205,16 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <div id="invList" class="muted small" style="margin-top:8px"></div>
     </div>
     <div class="field"><label for="sePw">Yeni şifre (en az 6 karakter, değiştirmek istemezsen boş bırak)</label><input type="password" id="sePw" autocomplete="new-password"></div>
+    <div class="field" id="delBox">
+      <label>Hesabı sil</label>
+      <p class="muted small" id="delDesc"></p>
+      <div class="actions"><button class="btn" type="button" id="delOpen">Hesabımı sil…</button></div>
+      <div id="delConfirm" hidden style="margin-top:8px">
+        <input type="text" id="delWord" autocomplete="off" autocapitalize="characters" placeholder="Onaylamak için SİL yaz">
+        <div class="actions" style="margin-top:8px"><button class="btn primary" type="button" id="delGo" disabled>Kalıcı olarak sil</button><button class="link-btn" type="button" id="delCancel">Vazgeç</button></div>
+      </div>
+      <p class="muted small" id="delSt" role="status"></p>
+    </div>
     <p class="err" id="seErr" role="alert"></p>
     <div class="actions"><button class="btn primary" type="submit">Kaydet</button><button class="btn" type="button" id="seCancel">Kapat</button></div>
   </form>
@@ -2209,6 +2220,36 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     var b = e.target.closest('[data-invcopy]'); if (!b) return;
     var txt = 'Posta Kutumuz davet kodun: ' + b.dataset.invcopy + '\nSite: ' + location.href.split('#')[0].split('?')[0];
     try { navigator.clipboard.writeText(txt).then(function () { toast('Kopyalandı.'); }, function () { toast('Kopyalanamadı.'); }); } catch (x) { toast('Kopyalanamadı.'); }
+  });
+
+  /* ---------- Hesap silme ---------- */
+  function delReset() {
+    $('#delConfirm').hidden = true; $('#delWord').value = ''; $('#delGo').disabled = true; $('#delSt').textContent = '';
+    $('#delOpen').hidden = false;
+    $('#delDesc').textContent = isAdmin()
+      ? 'Odan, tüm anıların, fotoğrafların, müziklerin, mesajların ve sevgilinin hesabı kalıcı olarak silinir. Bu işlem geri alınamaz.'
+      : 'Yalnızca senin hesabın silinir. Oda ve diğer kişinin hesabı kalır. Bu işlem geri alınamaz.';
+  }
+  $('#btnSettings').addEventListener('click', delReset);
+  $('#delOpen').addEventListener('click', function () { $('#delConfirm').hidden = false; $('#delOpen').hidden = true; $('#delWord').focus(); });
+  $('#delCancel').addEventListener('click', delReset);
+  $('#delWord').addEventListener('input', function () {
+    var v = this.value.trim().toLocaleUpperCase('tr-TR');
+    $('#delGo').disabled = !(v === 'SİL' || v === 'SIL');
+  });
+  $('#delGo').addEventListener('click', async function () {
+    var st = $('#delSt'); this.disabled = true; st.textContent = 'Siliniyor…';
+    try {
+      if (isAdmin()) {
+        var ids = await state.db.rpc('room_asset_ids');
+        if (ids && ids.length && state.assets && state.assets.deleteMany) await state.assets.deleteMany(ids);
+        await state.db.rpc('delete_room');
+      } else { await state.db.rpc('delete_account'); }
+      LS.set('posta:art', ''); LS.set('posta:lastmail', '');
+      try { await state.auth.signOut(); } catch (e) {}
+      try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sb-') === 0) localStorage.removeItem(k); }); } catch (e) {}
+      location.reload();
+    } catch (ex) { st.textContent = 'Silinemedi. Biraz sonra tekrar dene.'; this.disabled = false; }
   });
 
   /* ---------- Açık / koyu mod ---------- */
