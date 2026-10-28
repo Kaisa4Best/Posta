@@ -4039,10 +4039,11 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     if (BD.booted || !state.db) { bdSync(); return; }
     BD.booted = true;
     var er = function () {};
-    state.db.doc('bday/cfg').onSnapshot(function (s) { BD.cfg = s.exists ? s.data() : null; BD.cfgReady = true; bdSync(); if (isAdmin() && !BD.edit) bdaFill(); bdAuto(); }, er);
-    state.db.doc('bday/done').onSnapshot(function (s) { BD.done = s.exists ? s.data() : null; BD.doneReady = true; bdSync(); bdAuto(); }, er);
-    state.db.collection('bdwish').onSnapshot(function (s) {
-      BD.wishes = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).sort(function (a, b) { return (a.at || 0) - (b.at || 0); });
+    state.db.doc('seen/bdcfg').onSnapshot(function (s) { BD.cfg = s.exists ? s.data() : null; BD.cfgReady = true; bdSync(); if (isAdmin() && !BD.edit) bdaFill(); bdAuto(); }, er);
+    state.db.doc('seen/bddone').onSnapshot(function (s) { BD.done = s.exists ? s.data() : null; BD.doneReady = true; bdSync(); bdAuto(); }, er);
+    state.db.doc('seen/bdwish').onSnapshot(function (s) {
+      var l = s.exists && s.data() ? s.data().items : null;
+      BD.wishes = Array.isArray(l) ? l : [];
       if (isAdmin()) bdaState();
     }, er);
     setInterval(bdTick, 1000);
@@ -4179,7 +4180,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     var pv = BD.preview;
     if (!pv) {
       LS.set('posta:bd:stage', '0');
-      state.db.doc('bday/done').set({ at: Date.now(), by: state.me, year: bdYear() }).catch(function () {});
+      state.db.doc('seen/bddone').set({ at: Date.now(), by: state.me, year: bdYear() }).catch(function () {});
       try { sendNote('🎈 Doğum günü macerasını tamamladım.'); } catch (e) {}
     }
     bdClose(); setTab('dogumgunu');
@@ -4324,7 +4325,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     send.addEventListener('click', function () {
       var t = ta.value.trim(); if (!t) { st.textContent = 'Önce bir dilek yaz.'; return; }
       send.disabled = true;
-      if (!BD.preview) state.db.collection('bdwish').add({ text: t.slice(0, 200), at: Date.now(), by: state.me }).catch(function () {});
+      if (!BD.preview) state.db.doc('seen/bdwish').set({ items: BD.wishes.concat([{ text: t.slice(0, 200), at: Date.now(), by: state.me }]).slice(-20), at: Date.now() }).catch(function () {});
       st.textContent = '✦ Dileğin yıldız oldu ✦'; ta.disabled = true; skip.hidden = true;
       var go = bdBtn('Devam'); go.addEventListener('click', next); body.appendChild(go);
     });
@@ -4427,7 +4428,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     var lines = function (id) { return $(id).value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); };
     var o = { date: date, letter: $('#bdaLetter').value.trim(), cards: lines('#bdaCards').slice(0, 40), balloons: lines('#bdaBal').slice(0, 40), gifts: lines('#bdaGifts').slice(0, 30).map(function (s) { var p = s.split('|'); return { n: p[0].trim().slice(0, 80), h: (p.slice(1).join('|') || '').trim().slice(0, 200) }; }), envs: BD.envEdit.map(function (e, i) { return { t: $('#bdaET' + i).value.trim().slice(0, 40) || e.t, x: $('#bdaEX' + i).value.trim().slice(0, 400), assetId: e.assetId || '', kind: e.kind || '' }; }), at: Date.now() };
     if (!o.letter) { er.textContent = 'Mektup boş olamaz.'; return; }
-    state.db.doc('bday/cfg').set(o).then(function () { $('#bdaSt').textContent = 'Kaydedildi.'; toast('Doğum günü ayarları kaydedildi.'); }).catch(fail);
+    state.db.doc('seen/bdcfg').set(o).then(function () { $('#bdaSt').textContent = 'Kaydedildi.'; toast('Doğum günü ayarları kaydedildi.'); }).catch(fail);
   }
   window.bdaFill = bdaFill;
   var bdaGo = function (id, fn) { var b = $(id); if (b) b.addEventListener('click', fn); };
@@ -4435,7 +4436,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   bdaGo('#bdaPvBal', function () { BD.afterBal = false; bdShowBalloons(true); });
   bdaGo('#bdaPvCnt', function () { bdCountdown(10, true); });
   bdaGo('#bdaPvMac', function () { LS.set('posta:bd:stage', '0'); bdStartMacera(true); });
-  bdaGo('#bdaReset', function () { var b = this; if (!armed(b)) return; state.db.doc('bday/done').delete().then(function () { LS.set('posta:bd:stage', '0'); toast('Macera baştan başlatılabilir.'); }).catch(fail); });
+  bdaGo('#bdaReset', function () { var b = this; if (!armed(b)) return; state.db.doc('seen/bddone').delete().then(function () { LS.set('posta:bd:stage', '0'); toast('Macera baştan başlatılabilir.'); }).catch(fail); });
   bdaGo('#bdBalGo', bdCloseBalloons);
   bdaGo('#bdClose', function () { if (BD.preview) { bdClose(); return; } bdClose(); });
 
