@@ -8,15 +8,19 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Posta Kutumuz">
 <meta property="og:description" content="Eren &amp; Elif'in köşesi">
+<meta property="og:image" content="https://kaisa4best.github.io/Posta/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:url" content="https://kaisa4best.github.io/Posta/">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kaisa4best.github.io/Posta/og.jpg">
 <meta name="theme-color" content="#c23f2a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Posta Kutumuz">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png?v=2">
-<link rel="apple-touch-icon" href="icon-192.png?v=2">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>:root{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <style>
 #splash{position:fixed;inset:0;z-index:2147483000;background:#0b121d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:opacity .6s ease;pointer-events:none;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -190,7 +194,7 @@ try {
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Hanken+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&family=Hanken+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@600&display=swap">
 <style>
 /* Layout concept: posta temalı. Üstte hava postası şeridi, gün sayacı bir posta damgası,
    anılar kartpostal, liste ve müzik sakin ve düz kalır. Cesaret sadece şeritte ve damgada. */
@@ -564,6 +568,78 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 .sw{width:38px;height:38px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1px var(--line);cursor:pointer}
 .sw[aria-pressed=true]{border-color:var(--ink)}
 #thFont{width:100%;font:inherit;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+/* ---------- Doğum günü paketi ---------- */
+.bd-ov { position: fixed; inset: 0; z-index: 900; overflow: hidden; color: #fdf2f8; font-family: var(--body); }
+.bd-sky { background: radial-gradient(ellipse at 50% 0%, #3b2a7a 0%, #1b1650 45%, #0a0d2b 100%); }
+.bd-day { background: linear-gradient(180deg, #ffd6e8 0%, #cfe6ff 100%); color: #3a1f4d; }
+#bdStars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bd-top { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 8px; z-index: 3; }
+.bd-dots { display: flex; gap: 6px; }
+.bd-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.bd-dots i.on { background: #ff7eb6; }
+.bd-dots i.cur { background: #7cc4ff; box-shadow: 0 0 8px #7cc4ff; }
+.bd-x { background: rgba(255,255,255,.12); color: #fdf2f8; border: 1px solid rgba(255,255,255,.25); border-radius: 99px; padding: 8px 14px; font: 500 14px var(--body); cursor: pointer; }
+.bd-body { position: absolute; inset: calc(env(safe-area-inset-top, 0px) + 52px) 0 0; overflow: auto; padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 28px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; z-index: 2; }
+.bd-body > * { max-width: 520px; width: 100%; min-width: 0; }
+.bd-hand { font-family: 'Caveat', 'Segoe Script', 'Bradley Hand', cursive; font-weight: 600; color: #ff7eb6; line-height: 1.1; text-wrap: balance; }
+.bd-big { font-size: clamp(40px, 12vw, 64px); }
+.bd-mid { font-size: clamp(28px, 8vw, 38px); }
+.bd-p { font-size: 17px; line-height: 1.55; color: #fdf2f8; overflow-wrap: anywhere; }
+.bd-sub { font-size: 14px; color: #c9c3ee; }
+.bd-btn { background: linear-gradient(90deg, #ff7eb6, #7cc4ff); color: #1a1240; border: 0; border-radius: 99px; padding: 14px 26px; font: 700 17px var(--body); cursor: pointer; width: auto; align-self: center; }
+.bd-btn[disabled] { opacity: .4; cursor: default; }
+.bd-btn.ghost { background: rgba(255,255,255,.12); color: #fdf2f8; border: 1px solid rgba(255,255,255,.3); }
+.bd-ov button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.bd-bl { position: absolute; width: var(--w, 64px); height: calc(var(--w, 64px) * 1.22); border-radius: 50% 50% 48% 48% / 55% 55% 45% 45%; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.78), rgba(255,255,255,0) 28%), var(--c); box-shadow: inset -6px -8px 14px rgba(0,0,0,.14); border: 0; padding: 0; cursor: pointer; }
+.bd-bl::after { content: ""; position: absolute; left: 50%; bottom: -26px; width: 1px; height: 26px; background: rgba(255,255,255,.6); }
+.bd-bl.pop { animation: bdPop .25s ease-out forwards !important; pointer-events: none; }
+.bd-rise { bottom: -140px; animation: bdRise var(--d, 9s) linear var(--dl, 0s) infinite; }
+@keyframes bdRise { from { transform: translate(0, 0); } 50% { transform: translate(14px, -65vh); } to { transform: translate(-10px, -130vh); } }
+@keyframes bdPop { to { transform: scale(1.5); opacity: 0; } }
+.bd-hh { position: absolute; pointer-events: none; font-size: 18px; color: #ff7eb6; animation: bdHeart .9s ease-out forwards; z-index: 5; }
+@keyframes bdHeart { from { transform: translate(0, 0) scale(.6); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; } }
+#bdBal .bd-center { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; text-align: center; z-index: 3; pointer-events: none; }
+#bdBal .bd-center .bd-btn { pointer-events: auto; }
+#bdBalTxt { min-height: 2.4em; text-shadow: 0 2px 12px rgba(255,255,255,.7); color: #e0457f; }
+#bdBalSub { color: #4a3a8a; font-size: 17px; opacity: 0; transition: opacity .8s; }
+.bd-star { position: absolute; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; border: 2px solid #ffd6e8; background: radial-gradient(circle, #fff6 0%, #7cc4ff55 70%); background-size: cover; background-position: center; box-shadow: 0 0 18px #ff7eb6aa; cursor: pointer; padding: 0; animation: bdTw 2.4s ease-in-out infinite; }
+.bd-star.seen { border-color: #7cc4ff; box-shadow: 0 0 10px #7cc4ff88; animation: none; }
+@keyframes bdTw { 50% { transform: scale(1.12); box-shadow: 0 0 28px #ff7eb6; } }
+.bd-field { position: relative; width: 100%; height: 56vh; min-height: 300px; }
+.bd-modal { position: absolute; inset: 0; z-index: 6; background: rgba(10,13,43,.88); display: flex; align-items: center; justify-content: center; padding: 18px; overflow: auto; }
+.bd-modal[hidden] { display: none; }
+.bd-card { background: #1d1a55; border: 1px solid rgba(255,255,255,.2); border-radius: 18px; padding: 18px; width: min(420px, 100%); display: grid; gap: 12px; text-align: center; }
+.bd-card img { width: 100%; max-height: 40vh; object-fit: cover; border-radius: 12px; }
+.bd-env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.bd-env { background: linear-gradient(160deg, #ffd6e8, #cfe6ff); color: #3a1f4d; border: 0; border-radius: 12px; padding: 22px 10px; font: 700 17px var(--body); cursor: pointer; position: relative; }
+.bd-env::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 50%; background: linear-gradient(155deg, transparent 49%, rgba(58,31,77,.18) 50%) , linear-gradient(205deg, transparent 49%, rgba(58,31,77,.18) 50%); background-size: 50% 100%, 50% 100%; background-position: left, right; background-repeat: no-repeat; }
+.bd-env.seen { opacity: .65; }
+.bd-env span { position: relative; }
+.bd-heartc { display: block; margin: 0 auto; touch-action: manipulation; max-width: 100%; }
+.bd-flip { perspective: 900px; width: 100%; height: 220px; cursor: pointer; }
+.bd-flip > div { position: relative; width: 100%; height: 100%; transition: transform .6s; transform-style: preserve-3d; }
+.bd-flip.on > div { transform: rotateY(180deg); }
+.bd-flip .f, .bd-flip .b { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 18px; display: flex; align-items: center; justify-content: center; padding: 20px; flex-direction: column; gap: 8px; }
+.bd-flip .f { background: linear-gradient(160deg, #3b2a7a, #1b1650); border: 1px solid #ff7eb6; }
+.bd-flip .b { background: linear-gradient(160deg, #ffd6e8, #cfe6ff); color: #3a1f4d; transform: rotateY(180deg); font: 600 21px/1.35 var(--body); }
+.bd-letter { text-align: left; font-size: 18px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 18px; max-height: 52vh; overflow: auto; }
+.bd-gift { display: grid; gap: 2px; text-align: left; background: rgba(255,255,255,.08); border-left: 3px solid #ff7eb6; padding: 10px 12px; border-radius: 8px; }
+.bd-gift b { font-size: 17px; }
+.bd-wish { width: 100%; min-height: 96px; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fdf2f8; padding: 12px; font: 16px/1.4 var(--body); }
+.bd-msg { min-height: 3.2em; font-size: 19px; color: #ffd6e8; }
+.bd-count { font: 800 96px/1 var(--display); color: #ff7eb6; text-shadow: 0 0 24px #ff7eb6; font-variant-numeric: tabular-nums; }
+body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-gradient(90deg, #ff7eb6, #7cc4ff) 1; }
+.bd-banner { background: linear-gradient(120deg, #ffd6e8, #cfe6ff); color: #3a1f4d; border: 0; margin-top: 12px; }
+.bd-banner .hand { font-family: 'Caveat', 'Segoe Script', cursive; font-weight: 600; font-size: 30px; line-height: 1.1; color: #c2185b; }
+.bd-ad { display: grid; gap: 14px; }
+.bd-ad textarea, .bd-ad input[type=text] { width: 100%; }
+.bd-mem-sec { margin-top: 18px; }
+.bd-rz { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
+.bd-rz > div { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface); display: grid; gap: 4px; }
+.bd-rz > div.on { background: linear-gradient(140deg, #ffd6e8, #cfe6ff); color: #3a1f4d; border-color: transparent; }
+.bd-rz .n { font: 700 16px var(--body); }
+.bd-rz .s { font-size: 13px; opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .bd-star, .bd-hh { animation: none !important; } .bd-flip > div { transition: none; } }
 </style>
 
 <style id="glass">
@@ -779,6 +855,8 @@ dialog h2 { font-size: 24px; font-weight: 800; }
         <button class="nav-item" type="button" data-tab="kupon">Sevgi kuponları</button>
         <button class="nav-item" type="button" data-tab="oyun">Oyunlar</button>
         <button class="nav-item" type="button" data-tab="espa">ESPA V1.0</button>
+        <button class="nav-item" type="button" data-tab="dogumgunu" id="navBd" hidden>Doğum günü</button>
+        <button class="nav-item" type="button" data-tab="rozet">Rozetlerimiz</button>
       </div>
     </div>
     <div class="nav-group" data-g="diger">
@@ -786,6 +864,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       <div class="nav-sub">
         <button class="nav-item" type="button" data-tab="muzik">Müzik</button>
         <button class="nav-item" type="button" data-tab="uygulama">Uygulama gibi aç</button>
+        <button class="nav-item" type="button" data-tab="bdadmin" id="navBda" hidden>Doğum günü ayarları</button>
       </div>
     </div>
     <div class="drawer-sep"></div>
@@ -796,6 +875,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   <!-- Bugün -->
   <section id="p-bugun" data-panel>
     <div class="show home-show" id="homeShow" hidden aria-label="Fotoğraflarımız"><div class="home-cap" id="homeCap"></div></div>
+    <div class="panel bd-banner" id="bdBanner" hidden></div>
     <div class="hero">
       <div class="hero-mark">
         <div id="postmark"></div>
@@ -1112,6 +1192,52 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     </ol></details>
     <p class="muted small" style="margin-top:14px">Sevgilinin de aynı adımları kendi telefonunda yapması gerekir. Müzik, tarayıcı gibi uygulama ilk dokunuştan sonra çalmaya başlar.</p>
   </section>
+
+  <!-- Doğum günü -->
+  <section id="p-dogumgunu" data-panel hidden>
+    <div class="sec-head"><h2 id="bdmTitle">Doğum günü</h2></div>
+    <div id="bdmBox"></div>
+  </section>
+
+  <!-- Rozetlerimiz -->
+  <section id="p-rozet" data-panel hidden>
+    <div class="sec-head"><h2>Rozetlerimiz</h2></div>
+    <p class="muted" id="rzSum"></p>
+    <div class="bd-rz" id="rzGrid"></div>
+  </section>
+
+  <!-- Doğum günü ayarları (yalnızca yönetici) -->
+  <section id="p-bdadmin" data-panel hidden>
+    <div class="sec-head"><h2>Doğum günü ayarları</h2></div>
+    <p class="muted small">Bu sayfayı yalnızca sen görürsün. Buraya yazdıkların doğum günü gecesi 00:00'a kadar diğer hesapta görünmez.</p>
+    <div class="panel bd-ad" id="bdaForm" style="margin-top:12px">
+      <div class="field"><label for="bdaDate">Doğum günü tarihi</label><input type="date" id="bdaDate"></div>
+      <div class="field"><label for="bdaLetter">Büyük mektup (her satır bir paragraf)</label><textarea id="bdaLetter" rows="12"></textarea></div>
+      <div class="field"><label for="bdaCards">“Sana neden âşığım” kartları (her satır bir kart)</label><textarea id="bdaCards" rows="10"></textarea></div>
+      <div class="field"><label for="bdaBal">Balon mesajları (her satır bir balon)</label><textarea id="bdaBal" rows="8"></textarea></div>
+      <div class="field"><label for="bdaGifts">Hediyeler (her satır: Hediye adı | ipucu ya da not)</label><textarea id="bdaGifts" rows="5" placeholder="ESPA anahtarlığı | Buluşunca sana vereceğim"></textarea></div>
+      <p class="sub-head">Zarflar</p>
+      <div id="bdaEnvs"></div>
+      <p class="err" id="bdaErr" role="alert"></p>
+      <div class="actions"><button class="btn primary" type="button" id="bdaSave">Kaydet</button></div>
+      <p class="muted small" id="bdaSt" role="status"></p>
+    </div>
+    <div class="panel bd-ad" style="margin-top:12px">
+      <p class="sub-head">Önizleme</p>
+      <div class="actions" style="flex-wrap:wrap;gap:8px">
+        <button class="btn" type="button" id="bdaPvBal">Balon sahnesi</button>
+        <button class="btn" type="button" id="bdaPvCnt">Geri sayım (10 sn)</button>
+        <button class="btn" type="button" id="bdaPvMac">Macera</button>
+      </div>
+      <p class="muted small">Önizleme kayıt bırakmaz.</p>
+    </div>
+    <div class="panel bd-ad" style="margin-top:12px">
+      <p class="sub-head">Durum</p>
+      <p id="bdaState"></p>
+      <div id="bdaWishes"></div>
+      <div class="actions"><button class="btn" type="button" id="bdaReset">Macerayı baştan başlat</button></div>
+    </div>
+  </section>
 </main>
 </div>
 
@@ -1133,6 +1259,27 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
 <dialog id="lbDlg" style="padding:0;width:min(96vw,900px);background:#000"><img id="lbImg" alt="" style="display:block;width:100%;max-height:88vh;object-fit:contain"></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<!-- Doğum günü: balonlar, geri sayım, macera -->
+<div class="bd-ov bd-day" id="bdBal" hidden role="dialog" aria-modal="true" aria-label="Doğum günü kutlaması">
+  <div class="bd-center">
+    <p class="bd-hand bd-big" id="bdBalTxt" aria-live="polite"></p>
+    <p id="bdBalSub"></p>
+    <button class="bd-btn" type="button" id="bdBalGo" hidden>Devam</button>
+  </div>
+</div>
+<div class="bd-ov bd-sky" id="bdCount" hidden role="dialog" aria-modal="true" aria-label="Geri sayım">
+  <div class="bd-body">
+    <p class="bd-hand bd-mid" id="bdCntTop">Kapı açılmak üzere</p>
+    <p class="bd-count" id="bdCntNum">0</p>
+    <p class="bd-sub" id="bdCntSub">Gökyüzünde bir şeyler parlıyor…</p>
+  </div>
+</div>
+<div class="bd-ov bd-sky" id="bdStage" hidden role="dialog" aria-modal="true" aria-label="Doğum günü macerası">
+  <canvas id="bdStars"></canvas>
+  <div class="bd-top"><div class="bd-dots" id="bdDots"></div><button type="button" class="bd-x" id="bdClose">Sonra devam et</button></div>
+  <div class="bd-body" id="bdBody"></div>
+</div>
+
 
 <!-- Ayarlar -->
 <dialog id="settingsDlg">
@@ -1348,7 +1495,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     evs.forEach(function (ev) { document.addEventListener(ev, h, true); });
     audio.addEventListener('playing', off, { once: true });
   }
-  function enter() { show('main'); renderAll(); armGesture(); }
+  function enter() { show('main'); renderAll(); armGesture(); if (window.bdBoot) window.bdBoot(); }
   function route() {
     if (!state.db || !state.auth) { show('nodb'); return; }
     var st = state.settings, u = state.authUser;
@@ -1769,7 +1916,9 @@ dialog h2 { font-size: 24px; font-weight: 800; }
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik', 'dogumgunu', 'rozet', 'bdadmin'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    if (tab === 'bdadmin' && !isAdmin()) tab = 'bugun';
+    if (tab === 'dogumgunu' && !(isAdmin() || (window.bdUnlockedNow && window.bdUnlockedNow()))) tab = 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
     if (window.paintNav) window.paintNav();
     if (tab === 'mesafe' && window.renderMesafe) setTimeout(window.renderMesafe, 0);
@@ -1778,6 +1927,9 @@ dialog h2 { font-size: 24px; font-weight: 800; }
     if (tab === 'kitap' && window.renderBookInfo) setTimeout(window.renderBookInfo, 0);
     if (tab === 'oyun' && window.renderGames) setTimeout(window.renderGames, 0);
     if (tab === 'kupon' && window.renderCoupons) setTimeout(window.renderCoupons, 0);
+    if (tab === 'dogumgunu' && window.bdRenderMem) setTimeout(window.bdRenderMem, 0);
+    if (tab === 'rozet' && window.bdRenderBadges) setTimeout(window.bdRenderBadges, 0);
+    if (tab === 'bdadmin' && window.bdaFill) setTimeout(window.bdaFill, 0);
     if (tab === 'espa' && window.espaShow) setTimeout(window.espaShow, 0);
     if (tab === 'ilac' && window.renderMeds) setTimeout(window.renderMeds, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
@@ -2164,7 +2316,7 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa'], diger: ['muzik', 'uygulama'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa', 'dogumgunu', 'rozet'], diger: ['muzik', 'uygulama', 'bdadmin'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -3821,6 +3973,492 @@ dialog h2 { font-size: 24px; font-weight: 800; }
       window.__host.use('assets').then(function (a) { state.assets = a; if (inMain()) syncAssetsUI(); }, function () {});
     } catch (e) {}
   }
+
+  /* ---------- Doğum günü paketi ---------- */
+  var BD = { cfg: null, done: null, wishes: [], booted: false, shown: false, stage: 0, preview: false, cdOn: false, cdLeft: 0, edit: null, afterBal: false };
+  var BD_HIT = ['yavrum', 'güzel gözlüm', 'hayatım', 'aşkım', 'ceylan gözlüm'];
+  var BD_COL = ['#ff7eb6', '#7cc4ff', '#ffb3d1', '#a5d8ff', '#ff9ac8', '#6ab7ff'];
+  var BD_DEF = {
+    date: '2026-11-20',
+    letter: [
+      'Güzel kızım, ceylan gözlüm, canımdan öte yavrum;',
+      'bu gece saat 12\'de bir yaşına daha girdin, beraber geçireceğimiz bir yaşımıza daha, inan bana nasıl kutlayacağımı bilmiyorum benim için de bir ilk bu. Bu siteyi ikimiz için yaptım, çünkü sen bana yaşamaya ve anlatmaya değer, unutulmaz bir hikâye verdin.',
+      'Bazen mesafe, bazen sinir, bazen de sadece zaman aramıza giriyor. Ama sen her seferinde aynı sıcaklıkla çıkıp geliyorsun. Seni gördüğüm o ilk saniye, bütün bekleyişi unutturuyor bana.',
+      'Revirde birbirimize gülümsediğimiz o an, aklıma geldikçe hâlâ yüzümde bir gülümseme bırakıyor. Sanırım o an anladım bir ömür senin olacağımı, benim olacağını.',
+      'Bugün senin günün. Tüm sürprizler, tüm balonlar ve bu mektup sana. Dilerim bu yıl sana güzel gözlerinin hak ettiği en güzel şeyleri getirir.',
+      'İyi ki doğdun hayatım. İyi ki benimsin.',
+      'Seni seviyorum, aşkım.',
+      'Eren'
+    ].join('\n'),
+    cards: [
+      'Çünkü gülünce dünyam aydınlanıyor.',
+      'Çünkü zor günlerde bile yanımda olduğunu biliyorum.',
+      'Çünkü gözlerine baktığımda dünya sessizleşiyor, güzel gözlüm.',
+      'Çünkü yan yana olsak da seni özlüyorum.',
+      'Çünkü seninle geçirdiğim 1 dakika 1 gün gibi, 1 gün 1 dakika gibi geçiyor.',
+      'Çünkü beni olduğum gibi seviyorsun.',
+      'Çünkü revirde birbirimize gülümsememiz aklıma gelince hâlâ gülümsüyorum.',
+      'Çünkü en güzel kahkahalarım hep seninle.',
+      'Çünkü sana her baktığımda "iyi ki" diyorum.',
+      'Çünkü sen benim en değerlimsin, canımdan öte olansın canım kızım.'
+    ],
+    balloons: [
+      'Seni çok seviyorum, hayatım.', 'Gülüşün dünyamı aydınlatıyor.', 'İyi ki doğdun ceylan gözlüm.', 'Bir dilek tut yavrum.',
+      'Sen benim en güzel kararımsın.', 'Bir yaş daha, bir ömür birlikte.', 'Kalbim hep seninle, aşkım.', 'Her şey seninle güzel.', 'Güzel gözlüm, bugün senin günün.'
+    ],
+    envs: [
+      { t: 'İlk mektup', x: 'Bu gece sana yazdığım ilk mektup. Aklımda sen, kalbimde sen, hayatım.' },
+      { t: 'Ses notu', x: 'Bunu sadece sen duyacaksın.' },
+      { t: 'Şarkımız', x: 'Bu şarkı çalınca hep seni düşünüyorum.' },
+      { t: 'Fotoğraf', x: 'En sevdiğim kare.' },
+      { t: 'Söz', x: 'Sana verdiğim söz: her zaman yanında olacağım, canım kızım.' }
+    ],
+    gifts: []
+  };
+  function bdConf() {
+    var c = BD.cfg || {}, d = BD_DEF, o = {};
+    o.date = parseYMD(c.date) ? c.date : d.date;
+    o.letter = typeof c.letter === 'string' && c.letter.trim() ? c.letter : d.letter;
+    o.cards = Array.isArray(c.cards) && c.cards.length ? c.cards : d.cards;
+    o.balloons = Array.isArray(c.balloons) && c.balloons.length ? c.balloons : d.balloons;
+    o.envs = d.envs.map(function (e, i) { var x = (c.envs && c.envs[i]) || {}; return { t: x.t || e.t, x: typeof x.x === 'string' ? x.x : e.x, assetId: ID_RE.test(x.assetId || '') ? x.assetId : '', kind: x.kind === 'audio' ? 'audio' : x.kind === 'image' ? 'image' : '' }; });
+    o.gifts = Array.isArray(c.gifts) ? c.gifts : d.gifts;
+    return o;
+  }
+  var bdReduced = function () { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  var bdRand = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+  function bdShuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function bdUnlockAt() { var o = parseYMD(bdConf().date); return new Date(o.y, o.m - 1, o.d, 0, 0, 0).getTime(); }
+  function bdUnlocked() { return Date.now() >= bdUnlockAt(); }
+  function bdIsToday() { var o = parseYMD(bdConf().date), t = todayYMD(); return !!o && o.m === t.m && o.d === t.d && (t.y >= o.y); }
+  function bdDone() { return !!BD.done; }
+  function bdYear() { return parseYMD(bdConf().date).y; }
+
+  /* --- veri --- */
+  function bdBoot() {
+    if (BD.booted || !state.db) { bdSync(); return; }
+    BD.booted = true;
+    var er = function () {};
+    state.db.doc('bday/cfg').onSnapshot(function (s) { BD.cfg = s.exists ? s.data() : null; BD.cfgReady = true; bdSync(); if (isAdmin() && !BD.edit) bdaFill(); bdAuto(); }, er);
+    state.db.doc('bday/done').onSnapshot(function (s) { BD.done = s.exists ? s.data() : null; BD.doneReady = true; bdSync(); bdAuto(); }, er);
+    state.db.collection('bdwish').onSnapshot(function (s) {
+      BD.wishes = s.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }).sort(function (a, b) { return (a.at || 0) - (b.at || 0); });
+      if (isAdmin()) bdaState();
+    }, er);
+    setInterval(bdTick, 1000);
+    bdSync();
+    setTimeout(function () { BD.cfgReady = BD.doneReady = true; bdAuto(); }, 3000);
+  }
+  function bdAuto() {
+    if (BD.shown || !BD.cfgReady || !BD.doneReady || !inMain() || state.me !== 'B') return;
+    BD.shown = true;
+    if (bdIsToday() && bdUnlocked()) { BD.afterBal = true; bdShowBalloons(false); }
+  }
+  function bdSync() {
+    if (!inMain()) return;
+    var adm = isAdmin(), unl = bdUnlocked();
+    var nb = $('#navBd'), na = $('#navBda');
+    if (nb) { nb.hidden = !(adm || unl); nb.textContent = adm && !unl ? 'Doğum günü (önizleme)' : 'Doğum günü'; }
+    if (na) na.hidden = !adm;
+    document.body.classList.toggle('bday-day', bdIsToday());
+    bdBanner();
+    if (!$('#p-dogumgunu').hidden) bdRenderMem();
+    if (!$('#p-rozet').hidden) bdRenderBadges();
+  }
+  function bdTick() {
+    if (!inMain() || state.me !== 'B') return;
+    var ms = bdUnlockAt() - Date.now();
+    if (ms > 0 && ms <= 60000 && !BD.cdOn && !BD.preview) { BD.cdOn = true; bdCountdown(Math.ceil(ms / 1000), false); }
+    bdNavOnly();
+  }
+  function bdNavOnly() { var nb = $('#navBd'); if (nb && state.me === 'B') nb.hidden = !bdUnlocked(); }
+  function bdBanner() {
+    var b = $('#bdBanner'); if (!b) return;
+    var s = '', B = names().B || 'Elif';
+    if (state.me === 'B' && bdUnlocked() && bdIsToday()) s = '<p class="hand">Doğum günün kutlu olsun, ' + esc(bdRand(BD_HIT)) + '!</p><p style="margin-top:6px">Gökyüzünde senin için bir macera var.</p><p style="margin-top:10px"><button class="btn primary" type="button" data-act="goto" data-tab="dogumgunu">' + (bdDone() ? 'Hatıraları aç' : 'Macerayı aç') + '</button></p>';
+    else if (state.me === 'B' && bdUnlocked() && !bdDone() && bdYear() === todayYMD().y) s = '<p class="hand">Seni bir macera bekliyor</p><p style="margin-top:10px"><button class="btn primary" type="button" data-act="goto" data-tab="dogumgunu">Macerayı aç</button></p>';
+    else if (state.me === 'A' && bdIsToday()) s = '<p class="hand">Bugün ' + esc(B) + '\'in doğum günü</p><p style="margin-top:6px">Sürprizler gece 00:00\'da açıldı.</p>';
+    b.hidden = !s; b.innerHTML = s;
+  }
+
+  /* --- balonlar --- */
+  function bdHearts(x, y, host) {
+    for (var i = 0; i < 7; i++) {
+      var h = document.createElement('i'); h.className = 'bd-hh'; h.textContent = i % 2 ? '♥' : '✦';
+      h.style.left = x + 'px'; h.style.top = y + 'px'; h.style.color = BD_COL[i % BD_COL.length];
+      h.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px'); h.style.setProperty('--dy', (-30 - Math.random() * 90) + 'px');
+      host.appendChild(h); setTimeout(function (e) { return function () { e.remove(); }; }(h), 950);
+    }
+  }
+  function bdMakeBalloon(host, i, fixedTop) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'bd-bl' + (fixedTop == null ? ' bd-rise' : '');
+    b.setAttribute('aria-label', 'Balon');
+    var w = 54 + Math.random() * 36;
+    b.style.setProperty('--w', w + 'px'); b.style.setProperty('--c', BD_COL[i % BD_COL.length]);
+    b.style.left = (4 + Math.random() * 82) + '%';
+    if (fixedTop == null) { b.style.setProperty('--d', (7 + Math.random() * 6) + 's'); b.style.setProperty('--dl', (-Math.random() * 8) + 's'); }
+    else b.style.top = fixedTop + '%';
+    host.appendChild(b); return b;
+  }
+  var bdTyping = null;
+  function bdTypeText(el, text, speed, done) {
+    clearInterval(bdTyping);
+    if (bdReduced()) { el.textContent = text; if (done) done(); return; }
+    var i = 0; el.textContent = '';
+    bdTyping = setInterval(function () { i++; el.textContent = text.slice(0, i); if (i >= text.length) { clearInterval(bdTyping); if (done) done(); } }, speed);
+  }
+  function bdShowBalloons(preview) {
+    var ov = $('#bdBal'); BD.preview = !!preview;
+    $$('.bd-bl', ov).forEach(function (n) { n.remove(); });
+    ov.hidden = false; ov.dataset.pv = preview ? '1' : '';
+    var red = bdReduced();
+    for (var i = 0; i < 22; i++) {
+      var b = bdMakeBalloon(ov, i, red ? 8 + Math.random() * 70 : null);
+      b.addEventListener('click', function (e) {
+        var r = ov.getBoundingClientRect(); bdHearts(e.clientX - r.left, e.clientY - r.top, ov); this.classList.add('pop');
+      });
+    }
+    var go = $('#bdBalGo'), sub = $('#bdBalSub'); go.hidden = true; sub.style.opacity = 0;
+    sub.textContent = preview ? 'Seni seviyorum, ' + bdRand(BD_HIT) + '.' : 'Seni seviyorum, ' + bdRand(BD_HIT) + '.';
+    bdTypeText($('#bdBalTxt'), 'İyi ki doğdun güzel kızım', 90, function () { sub.style.opacity = 1; go.hidden = false; go.focus(); });
+    setTimeout(function () { go.hidden = false; }, 3500);
+  }
+  function bdCloseBalloons() {
+    $('#bdBal').hidden = true; clearInterval(bdTyping);
+    var pv = BD.preview; BD.preview = false;
+    if (!pv && BD.afterBal && state.me === 'B' && bdUnlocked() && !bdDone()) { BD.afterBal = false; bdStartMacera(false); }
+    BD.afterBal = false;
+  }
+
+  /* --- geri sayım --- */
+  function bdCountdown(sec, preview) {
+    var ov = $('#bdCount'), num = $('#bdCntNum'); ov.hidden = false; BD.cdLeft = sec;
+    $('#bdCntTop').textContent = 'Kapı açılmak üzere'; $('#bdCntSub').textContent = 'Gökyüzünde bir şeyler parlıyor…';
+    num.textContent = sec;
+    var iv = setInterval(function () {
+      BD.cdLeft--;
+      if (BD.cdLeft > 0) { num.textContent = BD.cdLeft; return; }
+      clearInterval(iv); num.textContent = '0';
+      $('#bdCntTop').textContent = 'Doğum günün kutlu olsun'; $('#bdCntSub').textContent = '';
+      setTimeout(function () {
+        ov.hidden = true; BD.cdOn = false;
+        BD.preview = !!preview; BD.afterBal = !preview; BD.shown = true;
+        bdShowBalloons(!!preview);
+      }, 1600);
+    }, 1000);
+  }
+
+  /* --- macera --- */
+  var BD_ST = [];
+  var bdStageRun = 0;
+  function bdStartMacera(preview) {
+    BD.preview = !!preview;
+    var saved = +(LS.get('posta:bd:stage') || 0);
+    BD.stage = !preview && saved > 0 && saved < BD_ST.length ? saved : 0;
+    var ov = $('#bdStage'); ov.hidden = false; bdSkyStart();
+    if (!preview && !bdDone()) { /* müzik */ try { bdSong(false); } catch (e) {} }
+    bdGo(BD.stage);
+  }
+  function bdSong(force) {
+    var i = state.tracks.findIndex(function (t) { return /tuana/i.test(t.title || ''); });
+    if (i >= 0) { setTrack(i, true); return true; }
+    if (force) startMusic();
+    return false;
+  }
+  function bdGo(i) {
+    BD.stage = i; if (!BD.preview) LS.set('posta:bd:stage', String(i));
+    var dots = $('#bdDots'); dots.innerHTML = BD_ST.map(function (_, k) { return '<i class="' + (k < i ? 'on' : k === i ? 'cur' : '') + '"></i>'; }).join('');
+    $$('.bd-modal', $('#bdStage')).forEach(function (m) { m.remove(); });
+    var body = $('#bdBody'); body.innerHTML = ''; body.scrollTop = 0;
+    var run = ++bdStageRun, nxt = function () { if (run === bdStageRun) bdGo(i + 1); };
+    if (i >= BD_ST.length) { bdFinish(); return; }
+    BD_ST[i](body, nxt, run);
+  }
+  function bdClose() { $('#bdStage').hidden = true; bdStageRun++; clearInterval(bdTyping); BD.preview = false; }
+  function bdFinish() {
+    var pv = BD.preview;
+    if (!pv) {
+      LS.set('posta:bd:stage', '0');
+      state.db.doc('bday/done').set({ at: Date.now(), by: state.me, year: bdYear() }).catch(function () {});
+      try { sendNote('🎈 Doğum günü macerasını tamamladım.'); } catch (e) {}
+    }
+    bdClose(); setTab('dogumgunu');
+  }
+  function bdSkyStart() {
+    var c = $('#bdStars'), ctx = c.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = c.width = innerWidth * dpr, h = c.height = innerHeight * dpr, st = [];
+    for (var i = 0; i < 90; i++) st.push({ x: Math.random() * w, y: Math.random() * h, r: (0.6 + Math.random() * 1.6) * dpr, p: Math.random() * 6.28, s: 0.5 + Math.random() * 1.5 });
+    var red = bdReduced();
+    (function loop(t) {
+      if ($('#bdStage').hidden) return;
+      ctx.clearRect(0, 0, w, h);
+      st.forEach(function (s) { var a = red ? 0.7 : 0.35 + 0.65 * Math.abs(Math.sin(t / 900 * s.s + s.p)); ctx.globalAlpha = a; ctx.fillStyle = s.r > 1.6 * dpr ? '#ffd6e8' : '#cfe6ff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.28); ctx.fill(); });
+      requestAnimationFrame(loop);
+    })(0);
+  }
+  var bdBtn = function (txt, cls) { var b = document.createElement('button'); b.type = 'button'; b.className = 'bd-btn' + (cls ? ' ' + cls : ''); b.textContent = txt; return b; };
+  var bdP = function (cls, html) { var p = document.createElement('p'); p.className = cls; p.innerHTML = html; return p; };
+
+  // 1. Kapı
+  BD_ST.push(function (body, next) {
+    var o = parseYMD(bdConf().date);
+    body.appendChild(bdP('bd-sub', esc(fmtLong(o)).toLocaleUpperCase('tr-TR')));
+    body.appendChild(bdP('bd-hand bd-big', 'Hoş geldin,<br>' + esc(bdRand(BD_HIT))));
+    body.appendChild(bdP('bd-p', 'Bu gece sadece senin için açılan bir kapı var. Hazırsan dokun.'));
+    var b = bdBtn('Kapıyı aç'); b.addEventListener('click', function () { try { bdSong(true); } catch (e) {} next(); }); body.appendChild(b);
+  });
+  // 2. Anı yıldızları
+  BD_ST.push(function (body, next) {
+    var mems = sortedMemories().slice(), withPic = mems.filter(function (m) { return memPics(m).length; }), rest = mems.filter(function (m) { return !memPics(m).length; });
+    var pick = withPic.concat(rest).slice(0, 8);
+    if (!pick.length) { next(); return; }
+    body.appendChild(bdP('bd-hand bd-mid', 'Anılarımız yıldız oldu'));
+    body.appendChild(bdP('bd-sub', 'Parlayan yıldızlara dokun.'));
+    var field = document.createElement('div'); field.className = 'bd-field'; body.appendChild(field);
+    var pos = [[16, 12], [72, 10], [40, 30], [84, 42], [20, 52], [58, 60], [32, 82], [78, 82]], seen = 0, need = Math.min(3, pick.length);
+    var go = bdBtn('Devam'); go.disabled = true; go.addEventListener('click', next);
+    var modal = document.createElement('div'); modal.className = 'bd-modal'; modal.hidden = true; body.parentNode.appendChild(modal);
+    pick.forEach(function (m, i) {
+      var s = document.createElement('button'); s.type = 'button'; s.className = 'bd-star'; s.setAttribute('aria-label', m.title || 'Anı');
+      s.style.left = pos[i][0] + '%'; s.style.top = pos[i][1] + '%';
+      var pics = memPics(m); if (pics.length) s.style.backgroundImage = 'url(' + blobUrl(pics[0]) + ')';
+      s.addEventListener('click', function () {
+        if (!s.classList.contains('seen')) { s.classList.add('seen'); seen++; if (seen >= need) go.disabled = false; }
+        var o = parseYMD(m.date);
+        modal.innerHTML = '<div class="bd-card">' + (pics.length ? '<img alt="" src="' + blobUrl(pics[0]) + '">' : '') + '<p class="bd-hand bd-mid">' + esc(m.title) + '</p><p class="bd-sub">' + esc(o ? fmtLong(o) : '') + (m.place ? ' · ' + esc(m.place) : '') + '</p>' + (m.body ? '<p class="bd-p">' + esc(m.body.length > 240 ? m.body.slice(0, 240) + '…' : m.body) + '</p>' : '') + '<button class="bd-btn" type="button">Kapat</button></div>';
+        modal.hidden = false; modal.querySelector('button').onclick = function () { modal.hidden = true; }; modal.querySelector('button').focus();
+      });
+      field.appendChild(s);
+    });
+    body.appendChild(go);
+  });
+  // 3. Zarflar
+  BD_ST.push(function (body, next) {
+    var cfg = bdConf(), envs = cfg.envs, opened = 0, seen = {};
+    body.appendChild(bdP('bd-hand bd-mid', 'Kapalı zarflar'));
+    body.appendChild(bdP('bd-sub', 'Hepsini aç, her birinde bir şey var.'));
+    var grid = document.createElement('div'); grid.className = 'bd-env-grid'; body.appendChild(grid);
+    var go = bdBtn('Devam'); go.disabled = true; go.addEventListener('click', next);
+    var modal = document.createElement('div'); modal.className = 'bd-modal'; modal.hidden = true; body.parentNode.appendChild(modal);
+    envs.forEach(function (e, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'bd-env'; b.innerHTML = '<span>' + esc(e.t) + '</span>';
+      b.addEventListener('click', function () {
+        if (!seen[i]) { seen[i] = 1; opened++; b.classList.add('seen'); if (opened >= envs.length) go.disabled = false; }
+        var media = '';
+        if (e.assetId && e.kind === 'image') media = '<img alt="" src="' + blobUrl(e.assetId) + '">';
+        else if (e.assetId && e.kind === 'audio') media = '<audio controls preload="none" src="' + blobUrl(e.assetId) + '" style="width:100%"></audio>';
+        else if (i === 3) { var m = sortedMemories().filter(function (x) { return memPics(x).length; })[0]; if (m) media = '<img alt="" src="' + blobUrl(memPics(m)[0]) + '">'; }
+        modal.innerHTML = '<div class="bd-card"><p class="bd-hand bd-mid">' + esc(e.t) + '</p>' + media + (e.x ? '<p class="bd-p">' + esc(e.x) + '</p>' : '') + (i === 2 ? '<button class="bd-btn ghost" type="button" data-song="1">Şarkımızı çal</button>' : '') + '<button class="bd-btn" type="button" data-close="1">Kapat</button></div>';
+        modal.hidden = false; modal.querySelector('[data-close]').onclick = function () { modal.hidden = true; };
+        var sg = modal.querySelector('[data-song]'); if (sg) sg.onclick = function () { bdSong(true); };
+      });
+      grid.appendChild(b);
+    });
+    body.appendChild(go);
+  });
+  // 4. Balonlar
+  BD_ST.push(function (body, next) {
+    var msgs = bdShuffle(bdConf().balloons).slice(0, 9), left = msgs.length;
+    body.appendChild(bdP('bd-hand bd-mid', 'Balonları patlat'));
+    var msg = bdP('bd-msg', 'Her balonda küçük bir söz var.'); body.appendChild(msg);
+    var field = document.createElement('div'); field.className = 'bd-field'; field.style.position = 'relative'; body.appendChild(field);
+    var go = bdBtn('Devam'); go.hidden = true; go.addEventListener('click', next);
+    var red = bdReduced();
+    msgs.forEach(function (t, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'bd-bl';
+      var w = 58 + Math.random() * 22; b.style.setProperty('--w', w + 'px'); b.style.setProperty('--c', BD_COL[i % BD_COL.length]);
+      b.style.left = (6 + (i % 3) * 30 + Math.random() * 10) + '%'; b.style.top = (4 + Math.floor(i / 3) * 30 + Math.random() * 6) + '%';
+      if (!red) b.style.animation = 'bdSway ' + (3 + Math.random() * 2) + 's ease-in-out ' + (-Math.random() * 3) + 's infinite alternate';
+      b.setAttribute('aria-label', 'Balon');
+      b.addEventListener('click', function (e) {
+        var r = field.getBoundingClientRect(); bdHearts(e.clientX - r.left, e.clientY - r.top, field);
+        b.classList.add('pop'); msg.textContent = t; left--; if (left <= 0) go.hidden = false;
+      });
+      field.appendChild(b);
+    });
+    body.appendChild(go);
+  });
+  // 5. Yıldız kalbi
+  BD_ST.push(function (body, next, run) {
+    body.appendChild(bdP('bd-hand bd-mid', 'Yıldızları birleştir'));
+    var hint = bdP('bd-sub', 'Parlayan yıldızlara sırayla dokun.'); body.appendChild(hint);
+    var W = Math.min(340, innerWidth - 32), H = Math.round(W * 0.95), dpr = Math.min(2, window.devicePixelRatio || 1);
+    var c = document.createElement('canvas'); c.className = 'bd-heartc'; c.width = W * dpr; c.height = H * dpr; c.style.width = W + 'px'; c.style.height = H + 'px'; body.appendChild(c);
+    var ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+    var N = 12, pts = [];
+    for (var i = 0; i < N; i++) {
+      var t = Math.PI - i * 2 * Math.PI / N;
+      var x = 16 * Math.pow(Math.sin(t), 3), y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+      pts.push({ x: W / 2 + x * (W / 38), y: H * 0.46 - y * (W / 38) });
+    }
+    var k = 0, fin = false, go = bdBtn('Devam'); go.hidden = true; go.addEventListener('click', next);
+    function draw(tm) {
+      if (run !== bdStageRun || $('#bdStage').hidden) return;
+      ctx.clearRect(0, 0, W, H);
+      if (k > 0) { ctx.strokeStyle = '#ff7eb6'; ctx.lineWidth = 3; ctx.shadowColor = '#ff7eb6'; ctx.shadowBlur = 10; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (var j = 1; j < k; j++) ctx.lineTo(pts[j].x, pts[j].y); if (fin) ctx.closePath(); ctx.stroke(); ctx.shadowBlur = 0; }
+      if (fin) { var g = ctx.createRadialGradient(W / 2, H * 0.4, 10, W / 2, H * 0.4, W * 0.5); g.addColorStop(0, 'rgba(255,126,182,.55)'); g.addColorStop(1, 'rgba(124,196,255,.25)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); pts.forEach(function (p) { ctx.lineTo(p.x, p.y); }); ctx.closePath(); ctx.fill(); }
+      pts.forEach(function (p, j) {
+        var on = j < k, nxt = j === k && !fin, pulse = nxt ? 1 + 0.35 * Math.sin(tm / 200) : 1;
+        ctx.fillStyle = on ? '#ffd6e8' : nxt ? '#7cc4ff' : 'rgba(255,255,255,.55)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, (nxt ? 9 : 5) * pulse, 0, 6.28); ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    c.addEventListener('pointerdown', function (e) {
+      if (fin) return;
+      var r = c.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, p = pts[k];
+      if (Math.hypot(x - p.x, y - p.y) < 34) {
+        k++;
+        if (k >= N) { fin = true; hint.textContent = 'Gökyüzü bile seni kutluyor.'; hint.className = 'bd-hand bd-mid'; go.hidden = false; }
+      }
+    });
+    requestAnimationFrame(draw); body.appendChild(go);
+  });
+  // 6. Dilek ağacı
+  BD_ST.push(function (body, next) {
+    body.appendChild(bdP('bd-hand bd-mid', 'Bir dilek tut, güzel gözlüm'));
+    body.appendChild(bdP('bd-sub', 'Yazdığın dilek yıldız olup gökyüzüne çıkacak.'));
+    var ta = document.createElement('textarea'); ta.className = 'bd-wish'; ta.maxLength = 200; ta.setAttribute('aria-label', 'Dileğin'); ta.placeholder = 'Dileğin…'; body.appendChild(ta);
+    var st = bdP('bd-msg', ''); body.appendChild(st);
+    var send = bdBtn('Yıldıza dönüştür'), skip = bdBtn('Dileğim içimde kalsın', 'ghost');
+    send.addEventListener('click', function () {
+      var t = ta.value.trim(); if (!t) { st.textContent = 'Önce bir dilek yaz.'; return; }
+      send.disabled = true;
+      if (!BD.preview) state.db.collection('bdwish').add({ text: t.slice(0, 200), at: Date.now(), by: state.me }).catch(function () {});
+      st.textContent = '✦ Dileğin yıldız oldu ✦'; ta.disabled = true; skip.hidden = true;
+      var go = bdBtn('Devam'); go.addEventListener('click', next); body.appendChild(go);
+    });
+    skip.addEventListener('click', next);
+    body.appendChild(send); body.appendChild(skip);
+  });
+  // 7. Kartlar
+  BD_ST.push(function (body, next) {
+    var cards = bdConf().cards, i = 0;
+    body.appendChild(bdP('bd-hand bd-mid', 'Sana neden âşığım?'));
+    var cnt = bdP('bd-sub', ''); body.appendChild(cnt);
+    var host = document.createElement('div'); body.appendChild(host);
+    var nb = bdBtn('Sonraki'); nb.hidden = true; body.appendChild(nb);
+    function show() {
+      cnt.textContent = (i + 1) + ' / ' + cards.length; nb.hidden = true; nb.textContent = i === cards.length - 1 ? 'Devam' : 'Sonraki';
+      host.innerHTML = '<div class="bd-flip" role="button" tabindex="0" aria-label="Kartı çevir"><div><div class="f"><p class="bd-hand bd-mid">Dokun</p><p class="bd-sub">Kartı çevir</p></div><div class="b">' + esc(cards[i]) + '</div></div></div>';
+      var f = host.firstChild, flip = function () { f.classList.add('on'); nb.hidden = false; };
+      f.addEventListener('click', flip); f.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+    }
+    nb.addEventListener('click', function () { if (i >= cards.length - 1) next(); else { i++; show(); } });
+    show();
+  });
+  // 8. Final
+  BD_ST.push(function (body, next) {
+    var cfg = bdConf(), paras = cfg.letter;
+    body.appendChild(bdP('bd-hand bd-mid', 'Sana bir mektubum var'));
+    var box = document.createElement('div'); box.className = 'bd-letter'; body.appendChild(box);
+    var rest = document.createElement('div'); rest.style.display = 'grid'; rest.style.gap = '10px'; rest.hidden = true; body.appendChild(rest);
+    var gifts = cfg.gifts.filter(function (g) { return g && g.n; });
+    rest.innerHTML = '<p class="bd-hand bd-mid">Hediyelerin</p>' + (gifts.length ? gifts.map(function (g) { return '<div class="bd-gift"><b>' + esc(g.n) + '</b>' + (g.h ? '<span class="bd-sub">' + esc(g.h) + '</span>' : '') + '</div>'; }).join('') : '<p class="bd-p">Sürpriz hediyeler yolda, canım kızım. Seni çok seviyorum.</p>');
+    var fin = bdBtn('Hatıraya kaydet'); fin.addEventListener('click', next); rest.appendChild(fin);
+    var finished = false;
+    function end() { if (finished) return; finished = true; clearInterval(bdTyping); box.textContent = paras; rest.hidden = false; rest.scrollIntoView && rest.scrollIntoView({ block: 'nearest', behavior: bdReduced() ? 'auto' : 'smooth' }); }
+    box.addEventListener('click', end);
+    bdTypeText(box, paras, 26, function () { finished = true; rest.hidden = false; });
+    body.appendChild(bdP('bd-sub', 'Yazının üstüne dokunursan hepsi birden açılır.'));
+  });
+  var bdSwayCss = document.createElement('style'); bdSwayCss.textContent = '@keyframes bdSway{from{transform:translate(-8px,0)}to{transform:translate(8px,-10px)}}'; document.head.appendChild(bdSwayCss);
+
+  /* --- hatıra paneli --- */
+  function bdRenderMem() {
+    var box = $('#bdmBox'), cfg = bdConf(), adm = isAdmin(), done = bdDone(), unl = bdUnlocked();
+    $('#bdmTitle').textContent = 'Doğum günü ' + bdYear();
+    var h = '';
+    if (adm && !unl) h += '<p class="muted small">Önizleme: Bu bölüm diğer hesapta ' + esc(fmtLong(parseYMD(cfg.date))) + ' gece 00:00\'da açılır.</p>';
+    var saved = +(LS.get('posta:bd:stage') || 0);
+    if (state.me === 'B' || adm) h += '<div class="actions" style="margin:12px 0"><button class="btn primary" type="button" id="bdmGo">' + (state.me === 'B' && !done && saved > 0 ? 'Macerada kaldığın yerden devam et' : done || adm ? 'Macerayı baştan izle' : 'Macerayı başlat') + '</button></div>';
+    if (done || adm) {
+      h += '<div class="panel bd-mem-sec"><p class="sub-head">Mektup</p><p style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:8px">' + esc(cfg.letter) + '</p></div>';
+      h += '<div class="panel bd-mem-sec"><p class="sub-head">Sana neden âşığım</p><ol style="margin:8px 0 0;padding-left:20px;display:grid;gap:6px">' + cfg.cards.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ol></div>';
+      var gifts = cfg.gifts.filter(function (g) { return g && g.n; });
+      h += '<div class="panel bd-mem-sec"><p class="sub-head">Hediyeler</p>' + (gifts.length ? gifts.map(function (g) { return '<p style="margin-top:8px"><strong>' + esc(g.n) + '</strong>' + (g.h ? '<br><span class="muted">' + esc(g.h) + '</span>' : '') + '</p>'; }).join('') : '<p class="muted" style="margin-top:8px">Henüz eklenmedi.</p>') + '</div>';
+      var mine = BD.wishes.filter(function (w) { return w.by === 'B'; });
+      if (mine.length) h += '<div class="panel bd-mem-sec"><p class="sub-head">Dileğin</p>' + mine.map(function (w) { return '<p style="margin-top:8px">' + esc(w.text) + '</p>'; }).join('') + '</div>';
+    } else h += '<div class="panel bd-mem-sec"><p>Macerayı tamamlayınca mektup, kartlar ve hediyeler burada kalır.</p></div>';
+    box.innerHTML = h;
+    var g = $('#bdmGo'); if (g) g.onclick = function () { if (adm) LS.set('posta:bd:stage', '0'); bdStartMacera(adm && state.me === 'A'); };
+  }
+  window.bdRenderMem = bdRenderMem;
+
+  /* --- yönetici ekranı --- */
+  function bdaFill() {
+    if (!isAdmin() || !$('#bdaForm')) return;
+    var c = bdConf(); BD.edit = null;
+    $('#bdaDate').value = c.date; $('#bdaLetter').value = c.letter; $('#bdaCards').value = c.cards.join('\n'); $('#bdaBal').value = c.balloons.join('\n');
+    $('#bdaGifts').value = c.gifts.map(function (g) { return g.n + (g.h ? ' | ' + g.h : ''); }).join('\n');
+    BD.envEdit = c.envs.map(function (e) { return Object.assign({}, e); });
+    var box = $('#bdaEnvs'); box.innerHTML = '';
+    BD.envEdit.forEach(function (e, i) {
+      var d = document.createElement('div'); d.className = 'bd-ad'; d.style.cssText = 'border-top:1px solid var(--line);padding-top:12px;margin-top:12px';
+      d.innerHTML = '<div class="field"><label for="bdaET' + i + '">Zarf ' + (i + 1) + ' başlığı</label><input type="text" id="bdaET' + i + '" maxlength="40"></div><div class="field"><label for="bdaEX' + i + '">Yazı</label><textarea id="bdaEX' + i + '" rows="2" maxlength="400"></textarea></div><div class="field"><label for="bdaEF' + i + '">Fotoğraf ya da ses (isteğe bağlı)</label><input type="file" id="bdaEF' + i + '" accept="image/*,.m4a,.mp3,.mp4,.aac,.webm"></div><p class="muted small" id="bdaES' + i + '"></p>';
+      box.appendChild(d);
+      $('#bdaET' + i).value = e.t; $('#bdaEX' + i).value = e.x; bdaEnvSt(i);
+      $('#bdaEF' + i).addEventListener('change', function (ev) { bdaUpload(i, ev.target); });
+    });
+    bdaState();
+  }
+  function bdaEnvSt(i) { var e = BD.envEdit[i]; $('#bdaES' + i).textContent = e.assetId ? (e.kind === 'audio' ? 'Ses yüklü.' : 'Fotoğraf yüklü.') + ' Yenisini seçersen değişir.' : 'Dosya yok.'; }
+  async function bdaUpload(i, input) {
+    var f = input.files && input.files[0]; if (!f) return; var st = $('#bdaES' + i);
+    var assets = (typeof getAssets === 'function' ? await getAssets() : state.assets) || state.assets;
+    if (!assets) { st.textContent = 'Yükleme şu an kullanılamıyor.'; return; }
+    st.textContent = 'Yükleniyor…';
+    try {
+      var ext = (f.name.split('.').pop() || '').toLowerCase(), up, kind;
+      if (/^image\//.test(f.type)) { up = await assets.upload(await shrink(f)); kind = 'image'; }
+      else if (TYPE_BY_EXT[ext]) { if (f.size > 20 * 1024 * 1024) { st.textContent = '20 MB sınırını aşıyor.'; return; } up = await assets.upload(f, { type: TYPE_BY_EXT[ext] }); kind = 'audio'; }
+      else { st.textContent = 'Bu biçim desteklenmiyor.'; return; }
+      BD.envEdit[i].assetId = up.id; BD.envEdit[i].kind = kind; bdaEnvSt(i); st.textContent += ' Kaydet\'e basmayı unutma.';
+    } catch (e) { st.textContent = 'Yüklenemedi.'; }
+  }
+  function bdaState() {
+    var el = $('#bdaState'), w = $('#bdaWishes'); if (!el) return;
+    el.textContent = bdDone() ? (names().B || 'Elif') + ' macerayı tamamladı.' : bdUnlocked() ? 'Kapı açık, macera tamamlanmadı.' : 'Kapı henüz kapalı. Açılış: ' + new Date(bdUnlockAt()).toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    w.innerHTML = BD.wishes.length ? '<p class="sub-head">Dilekler</p>' + BD.wishes.map(function (x) { return '<p style="margin-top:6px">✦ ' + esc(x.text) + '</p>'; }).join('') : '';
+  }
+  function bdaSave() {
+    var er = $('#bdaErr'); er.textContent = '';
+    var date = $('#bdaDate').value; if (!parseYMD(date)) { er.textContent = 'Geçerli bir tarih seç.'; return; }
+    var lines = function (id) { return $(id).value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); };
+    var o = { date: date, letter: $('#bdaLetter').value.trim(), cards: lines('#bdaCards').slice(0, 40), balloons: lines('#bdaBal').slice(0, 40), gifts: lines('#bdaGifts').slice(0, 30).map(function (s) { var p = s.split('|'); return { n: p[0].trim().slice(0, 80), h: (p.slice(1).join('|') || '').trim().slice(0, 200) }; }), envs: BD.envEdit.map(function (e, i) { return { t: $('#bdaET' + i).value.trim().slice(0, 40) || e.t, x: $('#bdaEX' + i).value.trim().slice(0, 400), assetId: e.assetId || '', kind: e.kind || '' }; }), at: Date.now() };
+    if (!o.letter) { er.textContent = 'Mektup boş olamaz.'; return; }
+    state.db.doc('bday/cfg').set(o).then(function () { $('#bdaSt').textContent = 'Kaydedildi.'; toast('Doğum günü ayarları kaydedildi.'); }).catch(fail);
+  }
+  window.bdaFill = bdaFill;
+  var bdaGo = function (id, fn) { var b = $(id); if (b) b.addEventListener('click', fn); };
+  bdaGo('#bdaSave', bdaSave);
+  bdaGo('#bdaPvBal', function () { BD.afterBal = false; bdShowBalloons(true); });
+  bdaGo('#bdaPvCnt', function () { bdCountdown(10, true); });
+  bdaGo('#bdaPvMac', function () { LS.set('posta:bd:stage', '0'); bdStartMacera(true); });
+  bdaGo('#bdaReset', function () { var b = this; if (!armed(b)) return; state.db.doc('bday/done').delete().then(function () { LS.set('posta:bd:stage', '0'); toast('Macera baştan başlatılabilir.'); }).catch(fail); });
+  bdaGo('#bdBalGo', bdCloseBalloons);
+  bdaGo('#bdClose', function () { if (BD.preview) { bdClose(); return; } bdClose(); });
+
+  /* --- rozetler --- */
+  function bdRenderBadges() {
+    var s = state.settings || {}, st = parseYMD(s.start), days = st ? Math.max(0, daysBetween(st, todayYMD())) : 0;
+    var photos = state.memories.filter(function (m) { return memPics(m).length; }).length;
+    var L = [
+      ['Birlikte bir hafta', '7 gün', days, 7], ['Bir ay', '30 gün', days, 30], ['Yüzüncü gün', '100 gün', days, 100], ['Bir yıl', '365 gün', days, 365], ['Bin gün', '1000 gün', days, 1000],
+      ['İlk anı', 'Bir anı ekle', state.memories.length, 1], ['On anı', '10 anı', state.memories.length, 10], ['Elli anı', '50 anı', state.memories.length, 50],
+      ['Fotoğraf albümü', '5 fotoğraflı anı', photos, 5], ['İlk şarkı', 'Bir şarkı ekle', state.tracks.length, 1], ['Çalma listesi', '10 şarkı', state.tracks.length, 10],
+      ['İlk mektup', 'Bir mektup yaz', X.letters.length, 1], ['İlk kupon', 'Bir kupon ver', X.coupons.length, 1], ['İlk dilek', 'Dilek kutusuna ekle', X.wishes.length, 1],
+      ['Konuşkanlar', '50 mesaj', state.notes.length, 50], ['Günün soruları', '7 cevap', X.answers.length, 7],
+      ['Doğum günü macerası', 'Macerayı tamamla', bdDone() ? 1 : 0, 1]
+    ];
+    var got = L.filter(function (b) { return b[2] >= b[3]; }).length;
+    $('#rzSum').textContent = got + ' / ' + L.length + ' rozet kazandınız.';
+    $('#rzGrid').innerHTML = L.map(function (b) { var on = b[2] >= b[3]; return '<div class="' + (on ? 'on' : '') + '"><span class="n">' + esc(b[0]) + '</span><span class="s">' + esc(b[1]) + (on ? ' ✓' : ' · ' + Math.min(b[2], b[3]) + '/' + b[3]) + '</span></div>'; }).join('');
+  }
+  window.bdRenderBadges = bdRenderBadges;
+  window.bdBoot = bdBoot;
+  window.bdUnlockedNow = bdUnlocked;
+
   init();
 })();
 </script>
