@@ -12,11 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Simgeleri yaz
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Simge parcasi 1
         run: |
-          set -e
           base64 -d > icon-192.png <<'B64'
           iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAMAAABlApw1AAABIFBMVEXq16vo1ajn1Kbm06Xm0qLl
           0aLl0KDl0J/k0KLkz57jz6Hjzp/jzp3jzZvizJrhzJvgypnfyJbdx5TdxI/aw5DawIrXv4vWu4TS
@@ -138,6 +135,10 @@ jobs:
           08IW9j9eF/2XP0NbXo/5aUurCDB8AwAkNDP0c3d3f2dR/fC/fcSS2OtIj1k+kZZB/xt1YhrCJbKC
           T41Wi71KS+180r/U0DOWOQCoe0KAADAcvf1yq/WDZlH9MIC9g+Pj+54nXonXg3aHvrjoiRshCLXd
           T7S2OEAF9z1R4nqjTofn7XYEgExdj+QAS+Ivt1I/aPf3FtUPAgwA4HSy5vOX0tVHlDg8H0a/d6Np
+          B64
+      - name: Simge parcasi 2
+        run: |
+          base64 -d >> icon-192.png <<'B64'
           xCKAwvaasX1b1AKzI1Hoov0nQUAAnBAY+oGuzTL1wyR0fDZd9OWvk8wl/VgraqIfYXzLVkDyAe/b
           Zgg6RvGRBF5/DSIAozmqn/u7BxkB3vwfRAROHriEePaGj+mRDBSjMYdAfY96j0MUc8JFAEw9sUqG
           HfGaiIDWDwJgBIh+AIEBzBCApFBnDoSBwDkaqu2b0dZqtqPOEOrON3SEAzzI6sn1c393/wAAWj8D
@@ -165,6 +166,8 @@ jobs:
           q3dAYAI86CtIRuvzKVhEBNQKdPCKhr4KYCQA148hIAwAMXl+1JV5//s0cP8F2EwkgAxAxPrzM/oB
           +y+d/rMEAzCuzwAAAABJRU5ErkJggg==
           B64
+      - name: Simge parcasi 3
+        run: |
           base64 -d > icon-512.png <<'B64'
           iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAMAAADDpiTIAAABIFBMVEXp16vo1ajn1Kbm06Xm0qPl
           0qbl0aLl0J/k0KLkz57jz6Hjzp/jzp3jzZzizJrhy5vgypngyZbfyJXex5bdxZHbxJDawYzZwInX
@@ -286,6 +289,10 @@ jobs:
           kx379B+/gk1gADrADUOAM+AADgLQ+v+A2/7Q4wDZ/f8RAT4KFSAdQFWAHAQYZvYvlVDHSg+oPKgO
           EDwLRHKAnm+hAsJ1gD66DjCUcTLQqQPUkddNCPtPTurTP/IAsNaCRjVAIMDZxenZ0YmsBWfrfx7/
           gAFJrvf/oPc3R4BFpgK2hANUifwvszn3gQp6gChsjKboAJIDjMbXAQwW8BR1gBd56wCR+4HUucCm
+          B64
+      - name: Simge parcasi 4
+        run: |
+          base64 -d >> icon-512.png <<'B64'
           iOiWaf9O2zj7hWnA8QDhAPc3wAFOfAQI6n/EgEOBALHv/1kcQDiAH/8lI/6H2ShhSUiIgSHyRtgP
           txeQpQF6n3QvQMa/pH+T1umftocBWglAJfD29kJzgINs/a/inyFArvd/oA/4+9lPwAHQATD+x4j8
           j/HPPWAQqxnjoxYRIO8ElnwWED4PKDzAvQNGnAV6fP5Pi/8+t49Q7jNBLUR0af+2e/rP9wDJAsAB
@@ -406,6 +413,10 @@ jobs:
           /l4A1oLFm1zhSpDiAFcXggNE5n/kAJ4KCOZ/AwGYA6x3tzgHoM4E+hzA3w0OYECSywNeTmCk1oUp
           hMH0K9viqWXeYHfCit8GxegM5Oe4gY352pPk79RqVeAPrSOuTGD5B+EpiAA99JlAjwUGVSC5G0Ry
           gLj8DxiQxOh/wQD4o6E2BwidCSQ5QObNsCSHD2BJCO1V5492jFRbYDE2Osw9XovBDNMB22EA+9nA
+          B64
+      - name: Simge parcasi 5
+        run: |
+          base64 -d >> icon-512.png <<'B64'
           446QNYQbEb8Td4OJVhVeKxH/BZZ/wPp+DgjuBVJ9Qpy9QML+NAJ8ZQhwfcYPhgMHyNT/Kv4NBEjT
           /yYCzH8GDtDdZgjwJuNeQBoH6Hk4BzBKQk2M6spopVKvT3CTKYOZ4yWYToC4yek9+wOKoPHDv9NE
           vV5hf2QT/3RR/kmEB5AI0EvWgcIcQJwKt0+EkSdCHATgPeOz9T9UANADkhj9z+c0IIBSAWubOx4C
@@ -526,6 +537,10 @@ jobs:
           /0GvNjQgk0CGB2TwgXf5ze/bHxKAZACm8ivhpy+78R/oAeLFv6/+3Pg3EEDowAvZLzgm/2sOEJH/
           FQIAB0AdaDhACANqrcxhZ4JxY39AwD9RG2DYMCR5oEoCtAcEfeDdQ8Zry/5aAXgVbvACTAPjqvrj
           6r8yEf/6FnizlR7/PAMYHIDfDrxkLCBC/5/xXHApOUCE/uf5fx7PBDMH4G+HKwRoNkIYwH1gPML6
+          B64
+      - name: Simge parcasi 6
+        run: |
+          base64 -d >> icon-512.png <<'B64'
           liJoNMvq7kAL4V9bf8DxgFHHA14GPED5gZoPHeIQuG1/RgCHOQP0T36rNEDv/pp3gGwFEBv/Nge4
           djlARv4XCJCt/w0EQBa4hjoQECDgAcL+E62oYfKAEmLpqKqqa01g37riSYBXhHkSSMeApxqG/YEA
           cgJQLZVH/D0uxf1EGiiV/PqvfQfIs38rrf4j4r/tcIDL88svcfr/EtaNgQAp+h/yP8cAQABdCHjF
@@ -646,6 +661,10 @@ jobs:
           TKVvq+p5Cws99Q79h8IIjST35j9X346FJeave3oEkXEZxo2vTxz9Mv65ZflrIXnyP6I0cIC4/L8s
           1gpiQHcTzobusnF4cMTlAKeDYshOlVdqMZfgK/Cknfw113IxHBFLuLI/7o1lKlvTI4jBfu3trZV9
           skeObCQZRuyvy2YvfuK3fv97DQC59L+JABH6H/M/j3/eJ7ArMIDxgK1dxgT2tA+wwUjh2RdiXsAS
+          B64
+      - name: Simge parcasi 7
+        run: |
+          base64 -d >> icon-512.png <<'B64'
           80tw6l8jvQMSy617s13ghBgMWRjSKN9Q+QS8w9I/Kgc6M4WXfKtc9N+06fqD8e8MdLuD+McaYA79
           r35+yQGy9T/EP86VlfX1Lj8byjGAlwSZCxweHB4eHR0dH0s34J7AQQHn2ZmGB28YNj8715MNFyeu
           EEuMAXUPzDZ8GFlPQQX8C/nrjcykGOvtHT2UNxE+4njL3zHuZQI04j9e/0v6lUTq/0UZ/6vQJUhg
@@ -703,9 +722,14 @@ jobs:
           0A3X/1Qu2NwyFUCI/W+Z7N9WALtmBXA3xAD2BQYcZlYAFft/5Pvfp4btw/xfZP9U9o8YcK0rgCb7
           vyb5v2H3O29Qui81/vOP/x8wimKC2FIunQAAAABJRU5ErkJggg==
           B64
+      - name: Kaydet ve yayinla
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git add icon-192.png icon-512.png
           git commit -m "Simgeler yenilendi" || echo "Simgelerde degisiklik yok"
           git push
-          gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Sayfa yenileme istegi gonderilemedi"
+          gh api -X POST "repos/$REPO/pages/builds" || echo "Sayfa yenileme istegi gonderilemedi"
