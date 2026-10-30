@@ -640,6 +640,14 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
 .bd-rz .n { font: 700 16px var(--body); }
 .bd-rz .s { font-size: 13px; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .bd-star, .bd-hh { animation: none !important; } .bd-flip > div { transition: none; } }
+
+#maint { position: fixed; inset: 0; z-index: 1100; background: var(--bg); color: var(--ink); display: flex; align-items: center; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px); }
+#maint[hidden] { display: none !important; }
+#maint .mt-box { width: min(420px, 100%); display: grid; gap: 14px; text-align: center; border: 1px solid var(--line); background: var(--surface); border-radius: 16px; padding: 24px 20px; }
+#maint .mt-ic { width: 56px; height: 56px; margin: 0 auto; color: var(--red); }
+#maint h2 { font-size: 26px; }
+#maint .mt-btn { background: var(--ink); color: var(--bg); border: 0; border-radius: 10px; padding: 14px 20px; font: 700 17px var(--body); cursor: pointer; }
+#maint .mt-btn:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
 </style>
 
 <style id="glass">
@@ -1210,8 +1218,13 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   <section id="p-bdadmin" data-panel hidden>
     <div class="sec-head"><h2>Doğum günü ayarları</h2></div>
     <p class="muted small">Bu sayfayı yalnızca sen görürsün. Buraya yazdıkların doğum günü gecesi 00:00'a kadar diğer hesapta görünmez.</p>
+    <div class="panel bd-ad" style="margin-top:12px">
+      <label class="chip" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="bdaMaint"> <span>“Site bakımda” uyarısını göster (girerken Tamam'a basılır)</span></label>
+      <p class="muted small">İşareti kaldırıp aşağıdaki Kaydet'e basınca uyarı herkes için kalkar. Açıkken site her yeni açılışta bir kez sorar.</p>
+    </div>
     <div class="panel bd-ad" id="bdaForm" style="margin-top:12px">
-      <div class="field"><label for="bdaDate">Doğum günü tarihi</label><input type="date" id="bdaDate"></div>
+      <div class="field"><label for="bdaDate">Kutlama günü (kapı bu günün 00:00'ında açılır)</label><input type="date" id="bdaDate"></div>
+      <div class="field"><label for="bdaBirth">Gerçek doğum günü (açılış ekranında yazan tarih)</label><input type="date" id="bdaBirth"></div>
       <div class="field"><label for="bdaLetter">Büyük mektup (her satır bir paragraf)</label><textarea id="bdaLetter" rows="12"></textarea></div>
       <div class="field"><label for="bdaCards">“Sana neden âşığım” kartları (her satır bir kart)</label><textarea id="bdaCards" rows="10"></textarea></div>
       <div class="field"><label for="bdaBal">Balon mesajları (her satır bir balon)</label><textarea id="bdaBal" rows="8"></textarea></div>
@@ -1278,6 +1291,14 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   <canvas id="bdStars"></canvas>
   <div class="bd-top"><div class="bd-dots" id="bdDots"></div><button type="button" class="bd-x" id="bdClose">Sonra devam et</button></div>
   <div class="bd-body" id="bdBody"></div>
+</div>
+<div id="maint" hidden role="alertdialog" aria-modal="true" aria-labelledby="mtTitle" aria-describedby="mtText">
+  <div class="mt-box">
+    <svg class="mt-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>
+    <h2 id="mtTitle">Site bakımda</h2>
+    <p id="mtText">Siteyi geliştiriyoruz. Bu sırada teknik aksaklıklar, yavaşlık ya da beklenmedik görünümler olabilir. Bir sorun görürsen biraz bekleyip sayfayı yenile.</p>
+    <button class="mt-btn" type="button" id="mtOk">Tamam</button>
+  </div>
 </div>
 
 
@@ -4018,6 +4039,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   function bdConf() {
     var c = BD.cfg || {}, d = BD_DEF, o = {};
     o.date = parseYMD(c.date) ? c.date : d.date;
+    o.birth = parseYMD(c.birth) ? c.birth : o.date;
     o.letter = typeof c.letter === 'string' && c.letter.trim() ? c.letter : d.letter;
     o.cards = Array.isArray(c.cards) && c.cards.length ? c.cards : d.cards;
     o.balloons = Array.isArray(c.balloons) && c.balloons.length ? c.balloons : d.balloons;
@@ -4039,7 +4061,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     if (BD.booted || !state.db) { bdSync(); return; }
     BD.booted = true;
     var er = function () {};
-    state.db.doc('seen/bdcfg').onSnapshot(function (s) { BD.cfg = s.exists ? s.data() : null; BD.cfgReady = true; bdSync(); if (isAdmin() && !BD.edit) bdaFill(); bdAuto(); }, er);
+    state.db.doc('seen/bdcfg').onSnapshot(function (s) { BD.cfg = s.exists ? s.data() : null; BD.cfgReady = true; bdMaintCfg(); bdSync(); if (isAdmin() && !BD.edit) bdaFill(); bdAuto(); }, er);
     state.db.doc('seen/bddone').onSnapshot(function (s) { BD.done = s.exists ? s.data() : null; BD.doneReady = true; bdSync(); bdAuto(); }, er);
     state.db.doc('seen/bdwish').onSnapshot(function (s) {
       var l = s.exists && s.data() ? s.data().items : null;
@@ -4202,7 +4224,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
 
   // 1. Kapı
   BD_ST.push(function (body, next) {
-    var o = parseYMD(bdConf().date);
+    var o = parseYMD(bdConf().birth);
     body.appendChild(bdP('bd-sub', esc(fmtLong(o)).toLocaleUpperCase('tr-TR')));
     body.appendChild(bdP('bd-hand bd-big', 'Hoş geldin,<br>' + esc(bdRand(BD_HIT))));
     body.appendChild(bdP('bd-p', 'Bu gece sadece senin için açılan bir kapı var. Hazırsan dokun.'));
@@ -4390,7 +4412,8 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   function bdaFill() {
     if (!isAdmin() || !$('#bdaForm')) return;
     var c = bdConf(); BD.edit = null;
-    $('#bdaDate').value = c.date; $('#bdaLetter').value = c.letter; $('#bdaCards').value = c.cards.join('\n'); $('#bdaBal').value = c.balloons.join('\n');
+    $('#bdaMaint').checked = !(BD.cfg && BD.cfg.maint === false);
+    $('#bdaDate').value = c.date; $('#bdaBirth').value = c.birth; $('#bdaLetter').value = c.letter; $('#bdaCards').value = c.cards.join('\n'); $('#bdaBal').value = c.balloons.join('\n');
     $('#bdaGifts').value = c.gifts.map(function (g) { return g.n + (g.h ? ' | ' + g.h : ''); }).join('\n');
     BD.envEdit = c.envs.map(function (e) { return Object.assign({}, e); });
     var box = $('#bdaEnvs'); box.innerHTML = '';
@@ -4426,7 +4449,8 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     var er = $('#bdaErr'); er.textContent = '';
     var date = $('#bdaDate').value; if (!parseYMD(date)) { er.textContent = 'Geçerli bir tarih seç.'; return; }
     var lines = function (id) { return $(id).value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); };
-    var o = { date: date, letter: $('#bdaLetter').value.trim(), cards: lines('#bdaCards').slice(0, 40), balloons: lines('#bdaBal').slice(0, 40), gifts: lines('#bdaGifts').slice(0, 30).map(function (s) { var p = s.split('|'); return { n: p[0].trim().slice(0, 80), h: (p.slice(1).join('|') || '').trim().slice(0, 200) }; }), envs: BD.envEdit.map(function (e, i) { return { t: $('#bdaET' + i).value.trim().slice(0, 40) || e.t, x: $('#bdaEX' + i).value.trim().slice(0, 400), assetId: e.assetId || '', kind: e.kind || '' }; }), at: Date.now() };
+    var birth = $('#bdaBirth').value; if (!parseYMD(birth)) birth = date;
+    var o = { maint: $('#bdaMaint').checked, date: date, birth: birth, letter: $('#bdaLetter').value.trim(), cards: lines('#bdaCards').slice(0, 40), balloons: lines('#bdaBal').slice(0, 40), gifts: lines('#bdaGifts').slice(0, 30).map(function (s) { var p = s.split('|'); return { n: p[0].trim().slice(0, 80), h: (p.slice(1).join('|') || '').trim().slice(0, 200) }; }), envs: BD.envEdit.map(function (e, i) { return { t: $('#bdaET' + i).value.trim().slice(0, 40) || e.t, x: $('#bdaEX' + i).value.trim().slice(0, 400), assetId: e.assetId || '', kind: e.kind || '' }; }), at: Date.now() };
     if (!o.letter) { er.textContent = 'Mektup boş olamaz.'; return; }
     state.db.doc('seen/bdcfg').set(o).then(function () { $('#bdaSt').textContent = 'Kaydedildi.'; toast('Doğum günü ayarları kaydedildi.'); }).catch(fail);
   }
@@ -4458,6 +4482,19 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   }
   window.bdRenderBadges = bdRenderBadges;
   window.bdBoot = bdBoot;
+
+  /* --- bakım uyarısı --- */
+  function bdMaintShow() { var m = $('#maint'); if (m) { m.hidden = false; var b = $('#mtOk'); if (b) b.focus(); } }
+  function bdMaintCfg() {
+    var off = !!(BD.cfg && BD.cfg.maint === false);
+    LS.set('posta:maint', off ? 'off' : 'on');
+    if (off) { var m = $('#maint'); if (m) m.hidden = true; }
+  }
+  (function () {
+    var m = $('#maint'); if (!m) return;
+    $('#mtOk').addEventListener('click', function () { m.hidden = true; SS.set('posta:maintok', '1'); });
+    if (LS.get('posta:maint') !== 'off' && SS.get('posta:maintok') !== '1') bdMaintShow();
+  })();
   window.bdUnlockedNow = bdUnlocked;
 
   init();
