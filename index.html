@@ -185,7 +185,7 @@ try {
   };
   var fn = { call: async function (name, body) {
     var r = await sb.functions.invoke(name, { body: body });
-    if (r.error) { var j = null; try { j = await r.error.context.json(); } catch (e) {} throw { code: (j && j.error) || 'network', detail: j && j.detail }; }
+    if (r.error) { var j = null; try { j = await r.error.context.json(); } catch (e) {} var er = r.error, st = er.context && er.context.status; throw { code: (j && j.error) || 'network', detail: (j && (j.detail || j.message || j.msg || j.code)) || ((er.name || 'Hata') + ': ' + String(er.message || '').slice(0, 120) + (st ? ' (HTTP ' + st + ')' : '')) }; }
     return r.data;
   } };
   window.__fbResolve({ db: db, assets: assets, auth: auth, fn: fn });
