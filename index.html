@@ -568,6 +568,18 @@ dialog h2 { font-size: 24px; font-weight: 800; }
 .sw{width:38px;height:38px;border-radius:50%;border:3px solid transparent;box-shadow:0 0 0 1px var(--line);cursor:pointer}
 .sw[aria-pressed=true]{border-color:var(--ink)}
 #thFont{width:100%;font:inherit;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+/* ---------- Şans çarkı ---------- */
+.ck-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.ck-tabs .btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.ck-wrap { position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 8px auto 0; }
+.ck-wrap canvas { width: 100%; height: 100%; display: block; border-radius: 50%; box-shadow: 0 6px 22px rgba(0,0,0,.18); }
+.ck-pin { position: absolute; left: 50%; top: -6px; width: 0; height: 0; margin-left: -12px; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 26px solid var(--ink); z-index: 2; filter: drop-shadow(0 2px 2px rgba(0,0,0,.3)); }
+.ck-res { text-align: center; font: 700 22px/1.3 var(--display); margin: 14px 0; min-height: 2.6em; overflow-wrap: anywhere; text-wrap: balance; }
+.ck-plan { text-align: center; margin-top: 12px; display: grid; gap: 6px; }
+.ck-plan p { font-size: 18px; overflow-wrap: anywhere; }
+.ck-plan .k { font: 500 12px var(--mono); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.ck-edit summary { cursor: pointer; font-weight: 700; }
+
 /* ---------- Doğum günü paketi ---------- */
 .bd-ov { position: fixed; inset: 0; z-index: 900; overflow: hidden; color: #fdf2f8; font-family: var(--body); }
 .bd-sky { background: radial-gradient(ellipse at 50% 0%, #3b2a7a 0%, #1b1650 45%, #0a0d2b 100%); }
@@ -864,6 +876,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
         <button class="nav-item" type="button" data-tab="oyun">Oyunlar</button>
         <button class="nav-item" type="button" data-tab="espa">ESPA V1.0</button>
         <button class="nav-item" type="button" data-tab="dogumgunu" id="navBd" hidden>Doğum günü</button>
+        <button class="nav-item" type="button" data-tab="cark">Şans çarkı</button>
         <button class="nav-item" type="button" data-tab="rozet">Rozetlerimiz</button>
       </div>
     </div>
@@ -1201,6 +1214,31 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     <p class="muted small" style="margin-top:14px">Sevgilinin de aynı adımları kendi telefonunda yapması gerekir. Müzik, tarayıcı gibi uygulama ilk dokunuştan sonra çalmaya başlar.</p>
   </section>
 
+  <!-- Şans çarkı -->
+  <section id="p-cark" data-panel hidden>
+    <div class="sec-head"><h2>Şans çarkı</h2></div>
+    <div class="add-row ck-tabs" id="ckTabs">
+      <button class="btn" type="button" data-ck="mek">Mekanlar</button>
+      <button class="btn" type="button" data-ck="akt">Aktiviteler</button>
+      <button class="btn" type="button" data-ck="yem">Yemekler</button>
+    </div>
+    <div class="ck-wrap"><div class="ck-pin" aria-hidden="true"></div><canvas id="ckCv" width="640" height="640" aria-label="Şans çarkı"></canvas></div>
+    <p class="ck-res" id="ckRes" role="status" aria-live="polite">Çevir’e bas, çark karar versin.</p>
+    <div class="actions" style="flex-wrap:wrap;gap:8px;justify-content:center">
+      <button class="btn primary" type="button" id="ckSpin">Çevir</button>
+      <button class="btn" type="button" id="ckAll">Bugünün planı</button>
+      <button class="btn" type="button" id="ckSend" hidden>Karşıya gönder</button>
+    </div>
+    <div class="panel ck-plan" id="ckPlan" hidden></div>
+    <details class="panel ck-edit" style="margin-top:14px">
+      <summary>Seçenekleri düzenle</summary>
+      <p class="muted small" style="margin-top:8px">Her satır bir seçenek. Seçili çarkın listesini değiştirirsin, ikiniz de aynı listeyi görürsünüz.</p>
+      <textarea id="ckList" rows="10" aria-label="Seçenekler" style="width:100%;margin-top:8px"></textarea>
+      <p class="muted small" id="ckCount"></p>
+      <div class="actions" style="gap:8px"><button class="btn primary" type="button" id="ckSave">Kaydet</button><button class="btn" type="button" id="ckReset">Varsayılana dön</button></div>
+    </details>
+  </section>
+
   <!-- Doğum günü -->
   <section id="p-dogumgunu" data-panel hidden>
     <div class="sec-head"><h2 id="bdmTitle">Doğum günü</h2></div>
@@ -1229,7 +1267,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
       <div class="field"><label for="bdaCards">“Sana neden âşığım” kartları (her satır bir kart)</label><textarea id="bdaCards" rows="10"></textarea></div>
       <div class="field"><label for="bdaBal">Balon mesajları (her satır bir balon)</label><textarea id="bdaBal" rows="8"></textarea></div>
       <div class="field"><label for="bdaGifts">Hediyeler (her satır: Hediye adı | ipucu ya da not)</label><textarea id="bdaGifts" rows="5" placeholder="ESPA anahtarlığı | Buluşunca sana vereceğim"></textarea></div>
-      <p class="sub-head">Zarflar</p>
+      <p class="sub-head">Zarf</p>
       <div id="bdaEnvs"></div>
       <p class="err" id="bdaErr" role="alert"></p>
       <div class="actions"><button class="btn primary" type="button" id="bdaSave">Kaydet</button></div>
@@ -1937,7 +1975,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik', 'dogumgunu', 'rozet', 'bdadmin'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik', 'dogumgunu', 'rozet', 'bdadmin', 'cark'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     if (tab === 'bdadmin' && !isAdmin()) tab = 'bugun';
     if (tab === 'dogumgunu' && !(isAdmin() || (window.bdUnlockedNow && window.bdUnlockedNow()))) tab = 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
@@ -1949,6 +1987,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     if (tab === 'oyun' && window.renderGames) setTimeout(window.renderGames, 0);
     if (tab === 'kupon' && window.renderCoupons) setTimeout(window.renderCoupons, 0);
     if (tab === 'dogumgunu' && window.bdRenderMem) setTimeout(window.bdRenderMem, 0);
+    if (tab === 'cark' && window.ckShow) setTimeout(window.ckShow, 0);
     if (tab === 'rozet' && window.bdRenderBadges) setTimeout(window.bdRenderBadges, 0);
     if (tab === 'bdadmin' && window.bdaFill) setTimeout(window.bdaFill, 0);
     if (tab === 'espa' && window.espaShow) setTimeout(window.espaShow, 0);
@@ -2337,7 +2376,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa', 'dogumgunu', 'rozet'], diger: ['muzik', 'uygulama', 'bdadmin'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa', 'dogumgunu', 'cark', 'rozet'], diger: ['muzik', 'uygulama', 'bdadmin'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -4028,11 +4067,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
       'Sen benim en güzel kararımsın.', 'Bir yaş daha, bir ömür birlikte.', 'Kalbim hep seninle, aşkım.', 'Her şey seninle güzel.', 'Güzel gözlüm, bugün senin günün.'
     ],
     envs: [
-      { t: 'İlk mektup', x: 'Bu gece sana yazdığım ilk mektup. Aklımda sen, kalbimde sen, hayatım.' },
-      { t: 'Ses notu', x: 'Bunu sadece sen duyacaksın.' },
-      { t: 'Şarkımız', x: 'Bu şarkı çalınca hep seni düşünüyorum.' },
-      { t: 'Fotoğraf', x: 'En sevdiğim kare.' },
-      { t: 'Söz', x: 'Sana verdiğim söz: her zaman yanında olacağım, canım kızım.' }
+      { t: 'İlk mektup', x: 'Bu gece sana yazdığım ilk mektup. Aklımda sen, kalbimde sen, hayatım.' }
     ],
     gifts: []
   };
@@ -4258,9 +4293,9 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   // 3. Zarflar
   BD_ST.push(function (body, next) {
     var cfg = bdConf(), envs = cfg.envs, opened = 0, seen = {};
-    body.appendChild(bdP('bd-hand bd-mid', 'Kapalı zarflar'));
-    body.appendChild(bdP('bd-sub', 'Hepsini aç, her birinde bir şey var.'));
-    var grid = document.createElement('div'); grid.className = 'bd-env-grid'; body.appendChild(grid);
+    body.appendChild(bdP('bd-hand bd-mid', envs.length > 1 ? 'Kapalı zarflar' : 'Kapalı bir zarf'));
+    body.appendChild(bdP('bd-sub', envs.length > 1 ? 'Hepsini aç, her birinde bir şey var.' : 'Sadece sana yazılmış. Aç.'));
+    var grid = document.createElement('div'); grid.className = 'bd-env-grid'; if (envs.length === 1) grid.style.gridTemplateColumns = '1fr'; body.appendChild(grid);
     var go = bdBtn('Devam'); go.disabled = true; go.addEventListener('click', next);
     var modal = document.createElement('div'); modal.className = 'bd-modal'; modal.hidden = true; body.parentNode.appendChild(modal);
     envs.forEach(function (e, i) {
@@ -4270,10 +4305,8 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
         var media = '';
         if (e.assetId && e.kind === 'image') media = '<img alt="" src="' + blobUrl(e.assetId) + '">';
         else if (e.assetId && e.kind === 'audio') media = '<audio controls preload="none" src="' + blobUrl(e.assetId) + '" style="width:100%"></audio>';
-        else if (i === 3) { var m = sortedMemories().filter(function (x) { return memPics(x).length; })[0]; if (m) media = '<img alt="" src="' + blobUrl(memPics(m)[0]) + '">'; }
-        modal.innerHTML = '<div class="bd-card"><p class="bd-hand bd-mid">' + esc(e.t) + '</p>' + media + (e.x ? '<p class="bd-p">' + esc(e.x) + '</p>' : '') + (i === 2 ? '<button class="bd-btn ghost" type="button" data-song="1">Şarkımızı çal</button>' : '') + '<button class="bd-btn" type="button" data-close="1">Kapat</button></div>';
+        modal.innerHTML = '<div class="bd-card"><p class="bd-hand bd-mid">' + esc(e.t) + '</p>' + media + (e.x ? '<p class="bd-p">' + esc(e.x) + '</p>' : '') + '<button class="bd-btn" type="button" data-close="1">Kapat</button></div>';
         modal.hidden = false; modal.querySelector('[data-close]').onclick = function () { modal.hidden = true; };
-        var sg = modal.querySelector('[data-song]'); if (sg) sg.onclick = function () { bdSong(true); };
       });
       grid.appendChild(b);
     });
@@ -4496,6 +4529,89 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     if (LS.get('posta:maint') !== 'off' && SS.get('posta:maintok') !== '1') bdMaintShow();
   })();
   window.bdUnlockedNow = bdUnlocked;
+
+  /* ---------- Şans çarkı ---------- */
+  var CK = {
+    kind: LS.get('posta:ck') || 'mek', ang: 0, busy: false, custom: {}, subbed: false, plan: null, last: '',
+    names: { mek: 'Mekan', akt: 'Aktivite', yem: 'Yemek' },
+    def: {
+      mek: ['Sahilde yürüyüş', 'Kafede kahve', 'Pastane', 'Sinema', 'AVM gezisi', 'Park pikniği', 'Çay bahçesi', 'Kebapçı', 'Tatlıcı', 'Dondurmacı', 'Çarşıda gezinti', 'Kitapçı', 'Müze', 'Lunapark', 'Bowling salonu', 'Göl kenarı', 'Doğa yürüyüşü', 'Seyir tepesi', 'Hamburgerci', 'Pizzacı', 'Balık ekmek', 'Kahvaltı mekanı', 'Sokak lezzetleri', 'Gençlik parkı', 'Kütüphane', 'Fotoğraf stüdyosu', 'Hediyelik eşya dükkânı', 'Hayvan barınağı ziyareti', 'Bisiklet turu', 'Oyun salonu', 'Escape room', 'Çiçekçi', 'Gün batımı noktası', 'Meydanda oturma', 'Mini golf', 'Tarihi mahalle', 'Pazar yeri', 'Kafe, tatlı ve oyun', 'Akşam yemeği restoranı', 'Gizli bir sokak keşfi'],
+      akt: ['Film izlemek', 'Fotoğraf çekmek', 'Birlikte yemek yapmak', 'Uzun bir yürüyüş', 'XOX ve oyun turnuvası', 'Piknik yapmak', 'Bowling oynamak', 'Mini golf oynamak', 'Birbirimize mektup yazmak', 'Hatıra defterini doldurmak', 'Dans etmek', 'Karaoke yapmak', 'Bisiklete binmek', 'Puzzle yapmak', 'Kart oyunu oynamak', 'Gün batımını izlemek', 'Birbirimize hediye seçmek', 'Karşılıklı çizim yapmak', 'Hayal listesi yazmak', 'El masajı yapmak', 'Tatlı yapmak', 'Fotoğraf albümüne bakmak', 'Ortak şarkı listesi hazırlamak', 'Yıldızları izlemek', 'Dondurma yarışı', 'Eski anıları anmak', 'Zaman kapsülü mektubu yazmak', 'Birbirimize 10 iltifat etmek', 'Sessizce bir saat birlikte olmak', 'Alışveriş yapmak', 'Sevgi kuponu vermek', 'Birbirimize şarkı söylemek', 'Birlikte bir hedef koymak', 'Bir anı eklemek', 'Selfie yarışması', 'Birbirimizin tarzını seçmek', 'Çay içip sohbet etmek', 'Ortak bir fotoğraf çekmek', 'Kitaptan bir bölüm okumak', 'Sürpriz küçük bir hediye almak'],
+      yem: ['Kahvaltı tabağı', 'Menemen', 'Pizza', 'Hamburger', 'Döner', 'İskender', 'Lahmacun', 'Pide', 'Kebap', 'Köfte', 'Tavuk şiş', 'Makarna', 'Mantı', 'Sushi', 'Dürüm', 'Tost', 'Waffle', 'Krep', 'Baklava', 'Künefe', 'Sütlaç', 'Dondurma', 'Çiğ köfte', 'Balık ekmek', 'Kumpir', 'Börek', 'Gözleme', 'Çorba', 'Tavuk döner', 'Ev yemeği', 'Salata', 'Patates kızartması', 'Ramen', 'Tantuni', 'Kokoreç', 'İçli köfte', 'Etli ekmek', 'Tatlı ve kahve', 'Simit ve çay', 'Cheesecake', 'Profiterol', 'Çikolatalı bir şey', 'Sandviç', 'Tavuk wrap', 'Pilav üstü', 'Mücver', 'Kuru fasulye', 'Kumru', 'Mısır ve kestane', 'Hatay usulü bir şey']
+    },
+    col: ['#d6556a', '#4f86c6', '#f0a0b4', '#7fb2e5', '#b8405a', '#3e6fae', '#e88aa0', '#6ea0d8']
+  };
+  function ckList() { var c = CK.custom[CK.kind]; return Array.isArray(c) && c.length ? c : CK.def[CK.kind]; }
+  function ckDraw() {
+    var cv = $('#ckCv'); if (!cv) return;
+    var list = ckList(), n = list.length, ctx = cv.getContext('2d'), W = cv.width, R = W / 2 - 6, seg = 2 * Math.PI / n;
+    ctx.clearRect(0, 0, W, W); ctx.save(); ctx.translate(W / 2, W / 2); ctx.rotate(CK.ang);
+    for (var i = 0; i < n; i++) {
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, R, i * seg, (i + 1) * seg); ctx.closePath();
+      ctx.fillStyle = CK.col[i % CK.col.length]; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.save(); ctx.rotate((i + 0.5) * seg); ctx.fillStyle = '#fff'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      var fs = n > 36 ? 15 : n > 24 ? 19 : n > 14 ? 24 : 30; ctx.font = '700 ' + fs + 'px "Hanken Grotesk", system-ui, sans-serif';
+      var t = list[i]; if (t.length > 22) t = t.slice(0, 21) + '…';
+      ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 3; ctx.fillText(t, R - 18, 0); ctx.restore();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(W / 2, W / 2, 34, 0, 6.2832); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.15)'; ctx.stroke();
+  }
+  function ckSpin(done) {
+    if (CK.busy) return; CK.busy = true;
+    var list = ckList(), n = list.length, seg = 2 * Math.PI / n, r = Math.floor(Math.random() * n);
+    var target = -Math.PI / 2 - (r + 0.5 + (Math.random() - 0.5) * 0.6) * seg;
+    var cur = CK.ang % (2 * Math.PI), end = target - Math.floor((target - cur) / (2 * Math.PI)) * 2 * Math.PI + 2 * Math.PI * (5 + Math.floor(Math.random() * 3));
+    var start = CK.ang, dur = bdReduced() ? 1 : 4200, t0 = performance.now();
+    $('#ckRes').textContent = 'Dönüyor…'; $('#ckSend').hidden = true;
+    (function step(now) {
+      var p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      CK.ang = start + (end - start) * e; ckDraw();
+      if (p < 1) { requestAnimationFrame(step); return; }
+      CK.busy = false; CK.last = list[r];
+      $('#ckRes').textContent = CK.names[CK.kind] + ': ' + list[r]; $('#ckSend').hidden = false;
+      if (done) done(list[r]);
+    })(t0);
+  }
+  function ckPaintTabs() { $$('#ckTabs [data-ck]').forEach(function (b) { b.classList.toggle('on', b.dataset.ck === CK.kind); }); }
+  function ckFillEdit() { var l = ckList(); $('#ckList').value = l.join('\n'); $('#ckCount').textContent = l.length + ' seçenek'; }
+  function ckSelect(k) { if (CK.busy) return; CK.kind = k; LS.set('posta:ck', k); CK.ang = 0; $('#ckRes').textContent = 'Çevir’e bas, çark karar versin.'; $('#ckSend').hidden = true; ckPaintTabs(); ckDraw(); ckFillEdit(); }
+  function ckShow() {
+    if (!CK.subbed && state.db) { CK.subbed = true; state.db.doc('seen/cark').onSnapshot(function (s) { CK.custom = s.exists && s.data() ? s.data() : {}; if (!$('#p-cark').hidden && !CK.busy) { ckDraw(); ckFillEdit(); } }, function () {}); }
+    ckPaintTabs(); ckDraw(); ckFillEdit();
+  }
+  window.ckShow = ckShow;
+  $('#ckTabs').addEventListener('click', function (e) { var b = e.target.closest('[data-ck]'); if (b) ckSelect(b.dataset.ck); });
+  $('#ckSpin').addEventListener('click', function () { $('#ckPlan').hidden = true; ckSpin(); });
+  $('#ckAll').addEventListener('click', function () {
+    if (CK.busy) return; var out = {}, order = ['mek', 'akt', 'yem'], i = 0;
+    $('#ckSend').hidden = true;
+    (function next() {
+      if (i >= order.length) {
+        var p = $('#ckPlan'); p.hidden = false;
+        p.innerHTML = '<p class="k">Bugünün planı</p><p><strong>Nerede:</strong> ' + esc(out.mek) + '</p><p><strong>Ne yapalım:</strong> ' + esc(out.akt) + '</p><p><strong>Ne yiyelim:</strong> ' + esc(out.yem) + '</p>';
+        CK.plan = 'Bugünün planı: ' + out.mek + ' · ' + out.akt + ' · ' + out.yem; CK.last = ''; $('#ckSend').hidden = false; $('#ckRes').textContent = 'Plan hazır.';
+        return;
+      }
+      ckSelect(order[i]); ckSpin(function (v) { out[order[i]] = v; i++; setTimeout(next, 600); });
+    })();
+  });
+  $('#ckSend').addEventListener('click', function () {
+    var t = !$('#ckPlan').hidden && CK.plan ? CK.plan : CK.last ? CK.names[CK.kind] + ': ' + CK.last : ''; if (!t) return;
+    sendNote('🎡 Çarkın kararı → ' + t).then(function () { toast('Gönderildi.'); }).catch(fail);
+  });
+  $('#ckList').addEventListener('input', function () { $('#ckCount').textContent = $('#ckList').value.split('\n').filter(function (s) { return s.trim(); }).length + ' seçenek'; });
+  $('#ckSave').addEventListener('click', function () {
+    var l = $('#ckList').value.split('\n').map(function (s) { return s.trim().slice(0, 60); }).filter(Boolean).slice(0, 60);
+    if (l.length < 2) { toast('En az iki seçenek yaz.'); return; }
+    var o = Object.assign({}, CK.custom); o[CK.kind] = l; o.at = Date.now();
+    state.db.doc('seen/cark').set(o).then(function () { toast('Kaydedildi.'); }).catch(fail);
+  });
+  $('#ckReset').addEventListener('click', function () {
+    var b = this; if (!armed(b)) return;
+    var o = Object.assign({}, CK.custom); delete o[CK.kind]; o.at = Date.now();
+    state.db.doc('seen/cark').set(o).then(function () { toast('Varsayılan liste geri geldi.'); }).catch(fail);
+  });
 
   init();
 })();
