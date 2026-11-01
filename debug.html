@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="font:14px monospace;padding:12px;background:#fff;color:#000"><pre id="o">Bekle...</pre><script src="config.js"></script><script>
+var c=window.SUPABASE_CONFIG,u=c.url+'/functions/v1/espa-bot',o=document.getElementById('o'),L=[];
+function p(s){L.push(s);o.textContent=L.join('\n');}
+async function t(n,f){try{var r=await f();p(n+': '+r.status+' '+(await r.text()).slice(0,100));}catch(e){p(n+': HATA '+e.name+' '+e.message);}}
+(async function(){
+await t('1 GET',()=>fetch(u));
+await t('2 POST text/plain',()=>fetch(u,{method:'POST',body:'{"action":"status"}'}));
+await t('3 POST json',()=>fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:'{"action":"status"}'}));
+await t('4 POST json+auth',()=>fetch(u,{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+c.anonKey,'apikey':c.anonKey},body:'{"action":"status"}'}));
+await t('5 ESPA eski fonksiyon',()=>fetch(c.url+'/functions/v1/super-processor',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+c.anonKey,'apikey':c.anonKey},body:'{}'}));
+p('bitti');})();
+</script>
