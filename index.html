@@ -1,34 +1,32 @@
-.bd-hh { position: absolute; pointer-events: none; font-size: 18px; color: #ff7eb6; animation: bdHeart .9s ease-out forwards; z-index: 5; }
-@keyframes bdHeart { from { transform: translate(0, 0) scale(.6); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; } }
-#bdBal .bd-center { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; text-align: center; z-index: 3; pointer-events: none; }
-#bdBal .bd-center .bd-btn { pointer-events: auto; }
-#bdBalTxt { min-height: 2.4em; text-shadow: 0 2px 12px rgba(255,255,255,.7); color: #e0457f; }
-#bdBalSub { color: #4a3a8a; font-size: 17px; opacity: 0; transition: opacity .8s; }
-.bd-star { position: absolute; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; border: 2px solid #ffd6e8; background: radial-gradient(circle, #fff6 0%, #7cc4ff55 70%); background-size: cover; background-position: center; box-shadow: 0 0 18px #ff7eb6aa; cursor: pointer; padding: 0; animation: bdTw 2.4s ease-in-out infinite; }
-.bd-star.seen { border-color: #7cc4ff; box-shadow: 0 0 10px #7cc4ff88; animation: none; }
-@keyframes bdTw { 50% { transform: scale(1.12); box-shadow: 0 0 28px #ff7eb6; } }
-.bd-field { position: relative; width: 100%; height: 56vh; min-height: 300px; }
-.bd-modal { position: absolute; inset: 0; z-index: 6; background: rgba(10,13,43,.88); display: flex; align-items: center; justify-content: center; padding: 18px; overflow: auto; }
-.bd-modal[hidden] { display: none; }
-.bd-card { background: #1d1a55; border: 1px solid rgba(255,255,255,.2); border-radius: 18px; padding: 18px; width: min(420px, 100%); display: grid; gap: 12px; text-align: center; }
-.bd-card img { width: 100%; max-height: 40vh; object-fit: cover; border-radius: 12px; }
-.bd-env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.bd-env { background: linear-gradient(160deg, #ffd6e8, #cfe6ff); color: #3a1f4d; border: 0; border-radius: 12px; padding: 22px 10px; font: 700 17px var(--body); cursor: pointer; position: relative; }
-.bd-env::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 50%; background: linear-gradient(155deg, transparent 49%, rgba(58,31,77,.18) 50%) , linear-gradient(205deg, transparent 49%, rgba(58,31,77,.18) 50%); background-size: 50% 100%, 50% 100%; background-position: left, right; background-repeat: no-repeat; }
-.bd-env.seen { opacity: .65; }
-.bd-env span { position: relative; }
-.bd-heartc { display: block; margin: 0 auto; touch-action: manipulation; max-width: 100%; }
-.bd-flip { perspective: 900px; width: 100%; height: 220px; cursor: pointer; }
-.bd-flip > div { position: relative; width: 100%; height: 100%; transition: transform .6s; transform-style: preserve-3d; }
-.bd-flip.on > div { transform: rotateY(180deg); }
-.bd-flip .f, .bd-flip .b { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 18px; display: flex; align-items: center; justify-content: center; padding: 20px; flex-direction: column; gap: 8px; }
-.bd-flip .f { background: linear-gradient(160deg, #3b2a7a, #1b1650); border: 1px solid #ff7eb6; }
-.bd-flip .b { background: linear-gradient(160deg, #ffd6e8, #cfe6ff); color: #3a1f4d; transform: rotateY(180deg); font: 600 21px/1.35 var(--body); }
-.bd-letter { text-align: left; font-size: 18px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 18px; max-height: 52vh; overflow: auto; }
-.bd-gift { display: grid; gap: 2px; text-align: left; background: rgba(255,255,255,.08); border-left: 3px solid #ff7eb6; padding: 10px 12px; border-radius: 8px; }
-.bd-gift b { font-size: 17px; }
-.bd-wish { width: 100%; min-height: 96px; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: #fdf2f8; padding: 12px; font: 16px/1.4 var(--body); }
-.bd-msg { min-height: 3.2em; font-size: 19px; color: #ffd6e8; }
-.bd-count { font: 800 96px/1 var(--display); color: #ff7eb6; text-shadow: 0 0 24px #ff7eb6; font-variant-numeric: tabular-nums; }
-body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-gradient(90deg, #ff7eb6, #7cc4ff) 1; }
-.bd-banner { background: linear-gradient(120deg, #ffd6e8, #cfe6ff); color: #3a1f4d; border: 0; margin-top: 12px; }
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Posta Kutumuz</title>
+<meta name="description" content="Eren &amp; Elif'in köşesi">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Posta Kutumuz">
+<meta property="og:description" content="Eren &amp; Elif'in köşesi">
+<meta property="og:image" content="https://kaisa4best.github.io/Posta/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://kaisa4best.github.io/Posta/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kaisa4best.github.io/Posta/og.jpg">
+<meta name="theme-color" content="#c23f2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Posta Kutumuz">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<style>
+#splash{position:fixed;inset:0;z-index:2147483000;background:#0b121d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:opacity .6s ease;pointer-events:none;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#splash.out{opacity:0}
+#splash .sp-logo{animation:spIn .9s cubic-bezier(.2,.8,.2,1) both}
+#splash .sp-name{margin:10px 0 0;color:#f2f5fa;font-size:26px;font-weight:800;letter-spacing:.04em;animation:spUp .8s .25s both}
+#splash .sp-pow{margin:0;color:#8fa0b8;font-size:13px;letter-spacing:.16em;text-transform:uppercase;animation:spUp .8s .45s both}
+@keyframes spIn{from{opacity:0;transform:scale(.8) rotate(-6deg)}to{opacity:1;transform:none}}
+@keyframes spUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
