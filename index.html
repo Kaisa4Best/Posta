@@ -188,11 +188,7 @@ try {
     if (r.error) { var j = null; try { j = await r.error.context.json(); } catch (e) {} var er = r.error, st = er.context && er.context.status; throw { code: (j && j.error) || 'network', detail: (j && (j.detail || j.message || j.msg || j.code)) || ((er.name || 'Hata') + ': ' + String(er.message || '').slice(0, 120) + (st ? ' (HTTP ' + st + ')' : '')) }; }
     return r.data;
   } };
-  var espa = {
-    send: async function (cmd, arg) { var r = await sb.from('espa_komut').insert({ cmd: cmd, arg: arg || '' }); if (r.error) throw { code: r.error.code === '42P01' || /espa_komut/.test(String(r.error.message)) ? 'espa/setup' : 'espa/send', detail: r.error.message }; },
-    status: async function () { var r = await sb.from('espa_durum').select('data,updated_at').eq('id', 1).maybeSingle(); if (r.error) throw { code: 'espa/setup', detail: r.error.message }; return r.data; }
-  };
-  window.__fbResolve({ db: db, assets: assets, auth: auth, fn: fn, espa: espa });
+  window.__fbResolve({ db: db, assets: assets, auth: auth, fn: fn });
 } catch (e) { console.error(e); window.__fbResolve(null); }
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -879,7 +875,6 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
         <button class="nav-item" type="button" data-tab="kupon">Sevgi kuponları</button>
         <button class="nav-item" type="button" data-tab="oyun">Oyunlar</button>
         <button class="nav-item" type="button" data-tab="espa">ESPA V1.0</button>
-        <button class="nav-item" type="button" data-tab="espakontrol">ESPA'yı kontrol et</button>
         <button class="nav-item" type="button" data-tab="dogumgunu" id="navBd" hidden>Doğum günü</button>
         <button class="nav-item" type="button" data-tab="cark">Şans çarkı</button>
         <button class="nav-item" type="button" data-tab="rozet">Rozetlerimiz</button>
@@ -1256,47 +1251,6 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     <div class="sec-head"><h2>Rozetlerimiz</h2></div>
     <p class="muted" id="rzSum"></p>
     <div class="bd-rz" id="rzGrid"></div>
-  </section>
-
-  <!-- ESPA'yı kontrol et -->
-  <section id="p-espakontrol" data-panel hidden>
-    <div class="sec-head"><h2>ESPA'yı kontrol et</h2></div>
-    <p class="muted small">Buradan gönderdiklerin birkaç saniye içinde ESPA'nın ekranına gelir. ESPA'nın WiFi'ye bağlı olması gerekir.</p>
-    <div class="panel ek-state" style="margin-top:12px">
-      <p id="ekState" role="status">Yükleniyor…</p>
-      <p class="muted small" id="ekMeta"></p>
-    </div>
-    <div class="panel" style="margin-top:12px">
-      <div class="field"><label for="ekMsg">ESPA'ya söylet</label><textarea id="ekMsg" rows="3" maxlength="300" placeholder="Ekranda ESPA'nın ağzından görünür"></textarea></div>
-      <div class="actions" style="margin-top:10px"><button class="btn primary" type="button" id="ekSay">Gönder</button> <button class="btn" type="button" id="ekHeart">Kalp gönder</button></div>
-    </div>
-    <div class="panel" style="margin-top:12px">
-      <p class="sub-head" style="margin-top:0">Fotoğraf</p>
-      <p class="muted small">Seçtiğin fotoğraf ESPA'nın ekranında görünür ve albümüne eklenir (en fazla 8 fotoğraf).</p>
-      <div class="actions" style="margin-top:10px">
-        <label class="btn primary" for="ekFile" style="display:inline-block">Fotoğraf seç ve gönder</label><input type="file" id="ekFile" accept="image/*" hidden>
-        <button class="btn" type="button" data-ek="fotoson">Son fotoğraf</button>
-        <button class="btn" type="button" data-ek="album">Albümü oynat</button>
-        <button class="btn" type="button" id="ekAlbumDel">Albümü temizle</button>
-      </div>
-      <p class="muted small" id="ekPhotoSt" role="status"></p>
-    </div>
-    <div class="panel" style="margin-top:12px">
-      <p class="sub-head" style="margin-top:0">Göz şekli</p>
-      <div class="chips" id="ekEyes"></div>
-      <p class="sub-head">Kişilik</p>
-      <div class="chips" id="ekMods"></div>
-    </div>
-    <div class="panel" style="margin-top:12px">
-      <p class="sub-head" style="margin-top:0">Diğer</p>
-      <div class="actions">
-        <button class="btn" type="button" data-ek="kapat">Ekranı kapat</button>
-        <button class="btn" type="button" data-ek="ac">Ekranı aç</button>
-        <button class="btn" type="button" data-ek="hava">Hava durumunu söylet</button>
-        <button class="btn" type="button" data-ek="hikaye">Hikayeyi oynat</button>
-      </div>
-      <p class="err" id="ekErr" role="alert"></p>
-    </div>
   </section>
 
   <!-- Bot Aktif Tut (yalnızca yönetici) -->
@@ -2040,7 +1994,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
   }
 
   function applyTab() {
-    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik', 'dogumgunu', 'rozet', 'bdadmin', 'cark', 'botaktif', 'espakontrol'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
+    var tab = ['bugun', 'anilar', 'liste', 'zaman', 'albumler', 'harita', 'takvim', 'mesafe', 'cizim', 'ilac', 'espa', 'kupon', 'oyun', 'kitap', 'dilek', 'mektup', 'hediye', 'ozet', 'uygulama', 'bildirim', 'muzik', 'dogumgunu', 'rozet', 'bdadmin', 'cark', 'botaktif'].indexOf(state.tab) >= 0 ? state.tab : 'bugun';
     if ((tab === 'bdadmin' || tab === 'botaktif') && !isAdmin()) tab = 'bugun';
     if (tab === 'dogumgunu' && !(isAdmin() || (window.bdUnlockedNow && window.bdUnlockedNow()))) tab = 'bugun';
     $$('[data-panel]').forEach(function (p) { p.hidden = p.id !== 'p-' + tab; });
@@ -2057,7 +2011,6 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     if (tab === 'bdadmin' && window.bdaFill) setTimeout(window.bdaFill, 0);
     if (tab === 'botaktif' && window.botLoad) setTimeout(window.botLoad, 0);
     if (tab === 'espa' && window.espaShow) setTimeout(window.espaShow, 0);
-    if (window.ekLeave) window.ekLeave(tab === 'espakontrol');
     if (tab === 'ilac' && window.renderMeds) setTimeout(window.renderMeds, 0);
     $$('.nav-item[data-tab]').forEach(function (b) {
       if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -2443,7 +2396,7 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
 
 
   /* ---------- Menü grupları ---------- */
-  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa', 'espakontrol', 'dogumgunu', 'cark', 'rozet'], diger: ['muzik', 'uygulama', 'bdadmin', 'botaktif'] };
+  var NAVG = { anilar: ['anilar', 'zaman', 'albumler', 'harita', 'ozet', 'kitap'], plan: ['liste', 'takvim', 'dilek', 'hediye'], aramiz: ['bildirim', 'mektup', 'mesafe', 'cizim', 'ilac', 'kupon', 'oyun', 'espa', 'dogumgunu', 'cark', 'rozet'], diger: ['muzik', 'uygulama', 'bdadmin', 'botaktif'] };
   function navOpenSet() { try { return JSON.parse(LS.get('posta:navopen') || '[]') || []; } catch (e) { return []; } }
   window.paintNav = paintNav;
   function paintNav() {
@@ -2660,19 +2613,20 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     $('#wishList').innerHTML = h;
   }
 
+  function leftOn(l) { return l && l.createdAt ? new Date(l.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''; }
   function renderLetters() {
     var t = todayYMD(), mine = X.letters.filter(function (l) { return l.to === state.me; }).sort(byTime).reverse(),
         sent = X.letters.filter(function (l) { return l.by === state.me; }).sort(byTime).reverse();
     var h = '<p class="sub-head">Bana gelenler</p>';
     h += mine.length ? mine.map(function (l) {
       var od = parseYMD(l.openAt), left = od ? daysBetween(t, od) : 0;
-      if (left > 0) return '<div class="panel lock" style="margin-top:10px"><p class="stamp">KİLİTLİ</p><p><strong>' + esc(authorOf(l.by)) + '</strong> sana bir mektup bıraktı.</p><p class="muted small">' + esc(fmtLong(od)) + ' tarihinde açılır (' + left + ' gün sonra).</p></div>';
-      return '<div class="panel" style="margin-top:10px"><p class="stamp">' + esc(authorOf(l.by)).toLocaleUpperCase('tr-TR') + ' · ' + esc(fmtStamp(l.openAt)) + '</p><p class="mem-text">' + esc(l.text) + '</p></div>';
+      if (left > 0) return '<div class="panel lock" style="margin-top:10px"><p class="stamp">KİLİTLİ</p><p><strong>' + esc(authorOf(l.by)) + '</strong> sana bir mektup bıraktı.</p><p class="muted small">' + (leftOn(l) ? esc(leftOn(l)) + ' tarihinde bırakıldı. ' : '') + esc(fmtLong(od)) + ' tarihinde açılır (' + left + ' gün sonra).</p></div>';
+      return '<div class="panel" style="margin-top:10px"><p class="stamp">' + esc(authorOf(l.by)).toLocaleUpperCase('tr-TR') + ' · ' + esc(fmtStamp(l.openAt)) + '</p>' + (leftOn(l) ? '<p class="muted small">' + esc(leftOn(l)) + ' tarihinde bırakıldı</p>' : '') + '<p class="mem-text">' + esc(l.text) + '</p></div>';
     }).join('') : '<p class="muted">Henüz sana yazılmış mektup yok.</p>';
     h += '<p class="sub-head">Yazdıklarım</p>';
     h += sent.length ? sent.map(function (l) {
       var od = parseYMD(l.openAt), left = od ? daysBetween(t, od) : 0;
-      return '<div class="panel" style="margin-top:10px"><p class="stamp">' + (left > 0 ? 'AÇILIŞ: ' + esc(fmtStamp(l.openAt)) : 'AÇILDI') + '</p><p class="mem-text">' + esc(l.text) + '</p><p style="margin-top:6px">' + delBtn('letters', l.id) + '</p></div>';
+      return '<div class="panel" style="margin-top:10px"><p class="stamp">' + (left > 0 ? 'AÇILIŞ: ' + esc(fmtStamp(l.openAt)) : 'AÇILDI') + '</p>' + (leftOn(l) ? '<p class="muted small">' + esc(leftOn(l)) + ' tarihinde bırakıldı</p>' : '') + '<p class="mem-text">' + esc(l.text) + '</p><p style="margin-top:6px">' + delBtn('letters', l.id) + '</p></div>';
     }).join('') : '<p class="muted">Yazdığın mektup yok.</p>';
     $('#letList').innerHTML = h;
   }
@@ -4556,89 +4510,6 @@ body.bday-day .top { border-bottom: 4px solid transparent; border-image: linear-
     state.db.doc('seen/bdcfg').set(o).then(function () { $('#bdaSt').textContent = 'Kaydedildi.'; toast('Doğum günü ayarları kaydedildi.'); }).catch(fail);
   }
   window.bdaFill = bdaFill;
-
-  /* ---------- ESPA'yı kontrol et ---------- */
-  var EK = { eyes: [['robot', 'Robot'], ['kalp', 'Kalp'], ['mutlu', 'Mutlu'], ['kizgin', 'Kızgın'], ['saskin', 'Şaşkın']],
-    mods: [['normal', 'Normal'], ['komik', 'Komik'], ['sakin', 'Sakin'], ['sevgili', 'Sevgi dolu'], ['bilge', 'Bilge'], ['nazli', 'Nazlı']],
-    timer: null, last: null };
-  function ekApi() { return window.__host.use('espa'); }
-  function ekErr(e) {
-    var c = e && e.code;
-    $('#ekErr').textContent = c === 'espa/setup' ? 'ESPA bağlantısı henüz kurulmamış (Supabase tablosu yok).' : 'Gönderilemedi, bağlantını kontrol et.';
-  }
-  function ekAgo(iso) {
-    var s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-    if (s < 90) return 'az önce';
-    if (s < 3600) return Math.round(s / 60) + ' dk önce';
-    if (s < 86400) return Math.round(s / 3600) + ' saat önce';
-    return Math.round(s / 86400) + ' gün önce';
-  }
-  function ekChips(id, list, cur, cmd) {
-    var h = list.map(function (x) { return '<label class="chip"><input type="radio" name="' + id + '" value="' + x[0] + '"' + (x[0] === cur ? ' checked' : '') + '><span>' + esc(x[1]) + '</span></label>'; }).join('');
-    var el = $('#' + id);
-    if (el.dataset.cur === String(cur) && el.innerHTML) return;
-    el.dataset.cur = String(cur);
-    el.innerHTML = h;
-    $$('#' + id + ' input').forEach(function (i) { i.addEventListener('change', function () { ekSend(cmd, i.value, (cmd === 'goz' ? 'Göz şekli: ' : 'Kişilik: ') + i.parentNode.textContent); }); });
-  }
-  function ekPaint(row) {
-    var d = row && row.data;
-    if (!d) { $('#ekState').textContent = 'ESPA henüz siteye bağlanmadı. ESPA açılıp WiFi\'ye bağlanınca burada görünür.'; $('#ekMeta').textContent = ''; ekChips('ekEyes', EK.eyes, '', 'goz'); ekChips('ekMods', EK.mods, '', 'mod'); return; }
-    var mins = (Date.now() - new Date(row.updated_at).getTime()) / 60000;
-    var on = mins < 3;
-    var pil = d.pil > 2.5 ? 'Pil %' + d.yuzde + (d.sarj ? ' (şarj oluyor)' : '') : 'Pil bilgisi yok';
-    $('#ekState').textContent = (on ? 'ESPA çevrimiçi' : 'ESPA çevrimdışı (son görülme ' + ekAgo(row.updated_at) + ')') + ' · ' + pil + (d.ekran === false ? ' · Ekran kapalı' : '');
-    $('#ekMeta').textContent = 'Adı: ' + (d.ad || 'ESPA') + ' · Albüm: ' + (d.album || 0) + '/8' + ' · Sürüm ' + (d.surum || '?');
-    ekChips('ekEyes', EK.eyes, d.goz, 'goz');
-    ekChips('ekMods', EK.mods, d.mod, 'mod');
-  }
-  function ekLoad() {
-    ekApi().then(function (a) { return a ? a.status() : null; }).then(ekPaint, function (e) { $('#ekState').textContent = 'Durum alınamadı.'; ekErr(e); ekChips('ekEyes', EK.eyes, '', 'goz'); ekChips('ekMods', EK.mods, '', 'mod'); });
-  }
-  function ekSend(cmd, arg, okMsg) {
-    $('#ekErr').textContent = '';
-    return ekApi().then(function (a) { if (!a) throw { code: 'espa/send' }; return a.send(cmd, arg); })
-      .then(function () { toast(okMsg || 'ESPA\'ya gönderildi.'); setTimeout(ekLoad, 6000); }, function (e) { ekErr(e); throw e; });
-  }
-  window.ekLeave = function (onPage) {
-    if (EK.timer) { clearInterval(EK.timer); EK.timer = null; }
-    if (onPage) { ekLoad(); EK.timer = setInterval(ekLoad, 20000); }
-  };
-  function ekWho() { return isAdmin() ? 'Babam' : 'Annem'; }
-  $('#ekSay').addEventListener('click', function () {
-    var t = $('#ekMsg').value.trim(); if (!t) { $('#ekMsg').focus(); return; }
-    var b = this; b.disabled = true;
-    ekSend('mesaj', isAdmin() ? t : ekWho() + ' diyor ki: ' + t, 'Mesaj ESPA\'ya gönderildi.').then(function () { $('#ekMsg').value = ''; }, function () {}).then(function () { b.disabled = false; });
-  });
-  $('#ekHeart').addEventListener('click', function () { ekSend('mesaj', ekWho() + ' sana kocaman bir kalp gönderdi!', 'Kalp gönderildi.').catch(function () {}); });
-  $$('[data-ek]').forEach(function (b) { b.addEventListener('click', function () { ekSend(b.dataset.ek, '', b.textContent + ': gönderildi.').catch(function () {}); }); });
-  $('#ekAlbumDel').addEventListener('click', function () { if (!armed(this)) return; ekSend('fotosil', '', 'Albüm temizleniyor.').catch(function () {}); });
-  // Fotografi 800 piksele kucultup JPEG yapar (ESPA bu bicimi acabiliyor)
-  function ekShrink(file) {
-    return new Promise(function (res, rej) {
-      var img = new Image(), u = URL.createObjectURL(file);
-      img.onload = function () {
-        var k = Math.min(1, 800 / Math.max(img.naturalWidth, img.naturalHeight));
-        var c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
-        var g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
-        URL.revokeObjectURL(u);
-        c.toBlob(function (b) { b ? res(b) : rej({ code: 'shrink' }); }, 'image/jpeg', 0.85);
-      };
-      img.onerror = function () { URL.revokeObjectURL(u); rej({ code: 'shrink' }); };
-      img.src = u;
-    });
-  }
-  $('#ekFile').addEventListener('change', function () {
-    var f = this.files && this.files[0]; this.value = ''; if (!f) return;
-    var st = $('#ekPhotoSt'); st.textContent = 'Hazırlanıyor…'; $('#ekErr').textContent = '';
-    ekShrink(f).then(function (b) {
-      st.textContent = 'Yükleniyor…';
-      return window.__host.use('assets').then(function (as) { return as.upload(new File([b], 'espa.jpg', { type: 'image/jpeg' }), { type: 'image/jpeg' }); });
-    }).then(function (r) {
-      return ekSend('foto', window.blobUrl(r.id), 'Fotoğraf ESPA\'ya gönderildi.');
-    }).then(function () { st.textContent = 'Gönderildi. ESPA birkaç saniye içinde gösterecek.'; }, function (e) { st.textContent = e && e.code === 'shrink' ? 'Bu fotoğraf açılamadı.' : 'Fotoğraf gönderilemedi.'; });
-  });
 
   /* ---------- Bot Aktif Tut ---------- */
   var BOTERR = { auth: 'Oturumun dolmuş olabilir, çıkış yapıp tekrar gir.', forbidden: 'Bu sayfa yalnızca yönetici içindir.', bad_token: 'Bot tokeni geçersiz görünüyor. BotFather\'dan tekrar kopyala.', webhook: 'Telegram bağlantıyı kabul etmedi.', no_token: 'Önce bot tokenini yaz.', bad_id: 'Telegram numarası yalnızca rakam olmalı.', bad_pw: 'Şifre 3-40 karakter olmalı.', not_found: 'Fonksiyon bulunamadı: Supabase\'de espa-bot adlı fonksiyonu oluşturmalısın.', network: 'Bağlantı kurulamadı.', server: 'Sunucu hatası, tekrar dene.' };
